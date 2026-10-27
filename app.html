@@ -415,7 +415,7 @@ pre.code { background: var(--surface-2); border: 1px solid var(--line); border-r
 <!-- ============ HARGA ============ -->
 <section class="page" id="p-price">
   <h2 class="title">Harga emas GAP</h2>
-  <p class="sub">Sejarah harga 1 gram yang anda rekodkan.</p>
+  <p class="sub">Sejarah harga GAP 1 gram dari Public Gold, berserta harga yang anda rekodkan sendiri.</p>
 
   <div class="card">
     <div class="row-title"><div class="label">Harga GAP hari ini</div><span class="hint" style="margin:0" id="pTime"></span></div>
@@ -597,7 +597,19 @@ pre.code { background: var(--surface-2); border: 1px solid var(--line); border-r
   const toast = msg => { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2200); };
 
   // ---------- derived ----------
-  const sortedPrices = () => [...S.prices].sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''));
+  // Shared price history (prices.json in the tabung-emas repo) merged with the user's own prices.
+  // The shared part is kept apart from S so it never bloats the user's saved data.
+  let feed = [];
+  try { feed = JSON.parse(localStorage.getItem(KEY + '.feed') || '[]'); } catch {}
+  let spMemo = null, spKey = null;
+  const sortedPrices = () => {
+    const key = [S.prices, S.prices.length, feed];
+    if (spMemo && spKey && key.every((v, i) => v === spKey[i])) return spMemo;
+    const own = S.prices.filter(p => !feed.some(f => f.date === p.date && f.price === p.price));
+    spMemo = [...feed, ...own].sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''));
+    spKey = key;
+    return spMemo;
+  };
   const latestPrice = () => { const p = sortedPrices(); return p.length ? p[p.length - 1] : null; };
   const price = () => latestPrice()?.price || 0;
   const priceOn = date => { let hit = null; for (const p of sortedPrices()) { if (p.date <= date) hit = p; else break; } return hit; };
@@ -896,7 +908,7 @@ pre.code { background: var(--surface-2); border: 1px solid var(--line); border-r
     }).join('') : `<div class="empty">Belum ada rekod.<br>Tekan <b>+ Tambah</b> setiap kali anda beli emas.</div>`;
   }
 
-  let checkTouched = false;
+  let checkTouched = false, priceListAll = false;
   function renderPrice() {
     $('pLink').innerHTML = priceLink();
     const lp = latestPrice(), p = price();
@@ -928,8 +940,10 @@ pre.code { background: var(--surface-2); border: 1px solid var(--line); border-r
 
     $('chart').innerHTML = chartSVG(sp);
     $('chartRange').textContent = sp.length ? `${fmtDate(sp[0].date)} – ${fmtDate(sp[sp.length - 1].date)}` : '';
-    $('priceList').innerHTML = sp.length ? [...sp].reverse().map((x, i) => `
-      <div class="kv"><span>${fmtDate(x.date)}${x.time ? ' · ' + x.time : ''}</span><b>RM ${x.price} <button class="btn ghost small" style="padding:3px 9px;margin-left:6px" data-delprice="${S.prices.indexOf(x)}" aria-label="Padam">✕</button></b></div>`).join('')
+    const rows = [...sp].reverse(), shown = priceListAll ? rows : rows.slice(0, 30);
+    $('priceList').innerHTML = rows.length ? shown.map(x => `
+      <div class="kv"><span>${fmtDate(x.date)}${x.time ? ' · ' + x.time : ''}<br><small class="hint" style="margin:0">${x.feed ? 'Public Gold' : x.src === 'penasihat' ? 'Penasihat' : 'Rekod anda'}</small></span><b>RM ${x.price}${x.feed ? '' : ` <button class="btn ghost small" style="padding:3px 9px;margin-left:6px" data-delprice="${S.prices.indexOf(x)}" aria-label="Padam">✕</button>`}</b></div>`).join('')
+        + (rows.length > 30 ? `<button class="btn ghost" data-act="price-all" style="margin-top:10px">${priceListAll ? 'Tunjuk 30 terkini sahaja' : `Lihat semua (${rows.length})`}</button>` : '')
       : '<div class="empty">Belum ada rekod harga.</div>';
   }
 
@@ -1308,9 +1322,10 @@ pre.code { background: var(--surface-2); border: 1px solid var(--line); border-r
   // ---------- price published in the tabung-emas repo (updated from publicgold.com.my) ----------
   // raw.githubusercontent.com serves the latest commit within minutes, without waiting for a Pages deploy;
   // price.json next to the app is the fallback.
-  const PRICE_SOURCES = ['https://raw.githubusercontent.com/viviannajeson/tabung-emas/main/price.json', 'price.json'];
-  async function fetchPriceFile() {
-    for (const u of PRICE_SOURCES) {
+  const REPO_RAW = 'https://raw.githubusercontent.com/viviannajeson/tabung-emas/main/';
+  async function fetchJson(name) {
+    // raw.githubusercontent.com serves the latest commit within minutes; the copy next to the app is the fallback
+    for (const u of [REPO_RAW + name, name]) {
       try {
         const r = await fetch(u + '?t=' + Date.now(), { cache: 'no-store' });
         if (r.ok) return await r.json();
@@ -1318,17 +1333,19 @@ pre.code { background: var(--surface-2); border: 1px solid var(--line); border-r
     }
     return null;
   }
+  const validRow = r => r && +r.price > 0 && /^\d{4}-\d{2}-\d{2}$/.test(r.date) && r.date <= today();
   async function syncDealerPrice() {
     if (window.claude) return;
-    try {
-      const j = await fetchPriceFile();
-      if (!j) return;
-      const pr = +j.price, d = String(j.date || '');
-      if (!(pr > 0) || !/^\d{4}-\d{2}-\d{2}$/.test(d) || d > today()) return;
-      if (S.prices.some(p => p.date === d && p.price === pr)) return;
-      S.prices.push({ date: d, price: pr, time: /^\d{2}:\d{2}$/.test(j.time) ? j.time : '', src: /publicgold/.test(j.source || '') ? 'publicgold' : 'penasihat' });
-      save(); render();
-    } catch {}
+    const hist = await fetchJson('prices.json');
+    let rows = Array.isArray(hist?.prices) ? hist.prices.filter(validRow) : [];
+    const latest = await fetchJson('price.json');
+    if (validRow(latest) && !rows.some(r => r.date === latest.date && +r.price === +latest.price)) rows.push(latest);
+    if (!rows.length) return;
+    const next = rows.map(r => ({ date: r.date, price: +r.price, time: /^\d{2}:\d{2}$/.test(r.time) ? r.time : '', src: /publicgold/.test(r.source || hist?.source || '') || !r.source ? 'publicgold' : 'penasihat', feed: true }));
+    if (JSON.stringify(next) === JSON.stringify(feed)) return;
+    feed = next;
+    try { localStorage.setItem(KEY + '.feed', JSON.stringify(feed)); } catch {}
+    render();
   }
   function renderDealerPrice() {
     // only on the adviser's own Claude link
@@ -1695,6 +1712,7 @@ pre.code { background: var(--surface-2); border: 1px solid var(--line); border-r
         if (S.goal.unit === 'g') S.goal.targetRM = S.goal.grams * p; else S.goal.grams = S.goal.targetRM / p;
         save(); render(); return toast(`Sasaran dikira semula: ${g2(S.goal.grams)}g`);
       }
+      case 'price-all': priceListAll = !priceListAll; return renderPrice();
       case 'export': return exportBackup();
       case 'backup-share': return shareBackup();
       case 'backup-later': S.backup = { ...S.backup, snooze: addDays(today(), 7) }; save(); render(); return toast('Kami ingatkan semula minggu depan');

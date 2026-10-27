@@ -1,7 +1,8 @@
-"""Read the GAP 1 gram price from publicgold.com.my and write it to price.json.
+"""Read the GAP 1 gram price from publicgold.com.my and write price.json and prices.json.
 
-The app reads price.json to show the adviser's price. The file is only rewritten when
-the price or its date changes, so the commit history stays readable.
+price.json holds the latest price. prices.json is the price history the app shows in the
+Harga tab: a new entry is added whenever the price changes, and at least one per day.
+Files are only rewritten when something changes, so the commit history stays readable.
 
     python3 scripts/update_price.py
 """
@@ -13,7 +14,9 @@ import sys
 import urllib.request
 
 URL = "https://publicgold.com.my/"
-OUT = pathlib.Path(__file__).resolve().parent.parent / "price.json"
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+OUT = ROOT / "price.json"
+HISTORY = ROOT / "prices.json"
 MYT = datetime.timezone(datetime.timedelta(hours=8))
 
 
@@ -52,17 +55,38 @@ def parse(html):
     }
 
 
+def load(path, default):
+    try:
+        return json.loads(path.read_text())
+    except (OSError, ValueError):
+        return default
+
+
 def main():
     new = parse(fetch(URL))
-    try:
-        old = json.loads(OUT.read_text())
-    except (OSError, ValueError):
-        old = {}
+
+    old = load(OUT, {})
     if old.get("price") == new["price"] and old.get("date") == new["date"]:
-        print(f"No change: RM {new['price']} on {new['date']}")
+        print(f"Latest unchanged: RM {new['price']} on {new['date']}")
+    else:
+        OUT.write_text(json.dumps(new, indent=2) + "\n")
+        print(f"Latest updated: RM {new['price']} on {new['date']} {new['time']}")
+
+    hist = load(HISTORY, {"source": URL, "prices": []})
+    rows = hist.setdefault("prices", [])
+    last = rows[-1] if rows else None
+    if last and last["price"] == new["price"] and last["date"] == new["date"]:
+        print("History unchanged")
         return
-    OUT.write_text(json.dumps(new, indent=2) + "\n")
-    print(f"Updated: RM {new['price']} on {new['date']} {new['time']}")
+    if last and (last["date"], last["time"]) >= (new["date"], new["time"]):
+        print("History already has a newer entry; not adding")
+        return
+    rows.append({"date": new["date"], "time": new["time"], "price": new["price"]})
+    hist["source"] = URL
+    # one entry per line keeps the file readable and the diffs small
+    body = ",\n".join("    " + json.dumps(r) for r in rows)
+    HISTORY.write_text('{\n  "source": %s,\n  "prices": [\n%s\n  ]\n}\n' % (json.dumps(URL), body))
+    print(f"History: added RM {new['price']} on {new['date']} {new['time']} ({len(rows)} entries)")
 
 
 if __name__ == "__main__":

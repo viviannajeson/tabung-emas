@@ -23,11 +23,13 @@ jobs:
       - name: Read GAP price from publicgold.com.my
         run: python3 scripts/update_price.py
 
-      - name: Commit price.json if it changed
+      - name: Commit price files if they changed
         run: |
-          if git diff --quiet -- price.json; then echo "Harga tidak berubah."; exit 0; fi
+          git add -N prices.json 2>/dev/null || true
+          if git diff --quiet -- price.json prices.json; then echo "Harga tidak berubah."; exit 0; fi
           git config user.name "github-actions[bot]"
           git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
           msg=$(python3 -c "import json; p=json.load(open('price.json')); print(f\"Harga GAP {p['date']} {p['time']}: RM {p['price']}\")")
-          git commit -m "$msg" -- price.json
+          git add price.json prices.json
+          git commit -m "$msg"
           git push
