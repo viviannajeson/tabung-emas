@@ -269,6 +269,10 @@ pre.code { background: var(--surface-2); border: 1px solid var(--line); border-r
 .chips button { border: 0; background: none; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--muted); padding: 5px 12px; border-radius: 999px; cursor: pointer; }
 .chips button.on { background: var(--brand); color: var(--on-dark); }
 #gStats { margin-top: 6px; }
+.grid2 > *, .grid2 input, .grid2 select { min-width: 0; }
+.chips.wrap { display: flex; flex-wrap: wrap; border-radius: 16px; }
+#chartStats { margin-top: 6px; }
+#chartStats small { font-weight: 400; color: var(--muted); }
 .syncnote { font-size: 12.5px; color: var(--muted); }
 @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
 @media (max-width: 380px) { .brand h1 { font-size: 16.5px; } .brand::before { width: 28px; height: 28px; } .pricebox { padding: 6px 9px; } .balance .big { font-size: 38px; } .cal .r { grid-template-columns: 34px repeat(12, 1fr); gap: 3px; } }
@@ -457,7 +461,15 @@ pre.code { background: var(--surface-2); border: 1px solid var(--line); border-r
 
   <div class="card">
     <div class="row-title"><div class="label">Graf harga</div><span class="hint" style="margin:0" id="chartRange"></span></div>
+    <div class="chips wrap" id="pRange" style="margin-top:10px">
+      <button data-pr="1m">1 bln</button><button data-pr="3m">3 bln</button><button data-pr="6m">6 bln</button><button data-pr="1y">1 thn</button><button data-pr="3y">3 thn</button><button class="on" data-pr="all">Semua</button><button data-pr="custom">Pilih tarikh</button>
+    </div>
+    <div class="grid2" id="pCustom" hidden style="margin-top:10px">
+      <label class="f">Dari<input type="date" id="pFrom"></label>
+      <label class="f">Hingga<input type="date" id="pTo"></label>
+    </div>
     <div id="chart" style="margin-top:12px"></div>
+    <div id="chartStats"></div>
   </div>
 
   <div class="card">
@@ -961,8 +973,7 @@ pre.code { background: var(--surface-2); border: 1px solid var(--line); border-r
       }
     }
 
-    $('chart').innerHTML = chartSVG(sp);
-    $('chartRange').textContent = sp.length ? `${fmtDate(sp[0].date)} – ${fmtDate(sp[sp.length - 1].date)}` : '';
+    renderPriceChart(sp);
     const rows = [...sp].reverse(), shown = priceListAll ? rows : rows.slice(0, 30);
     $('priceList').innerHTML = rows.length ? shown.map(x => `
       <div class="kv"><span>${fmtDate(x.date)}${x.time ? ' · ' + x.time : ''}<br><small class="hint" style="margin:0">${x.src === 'notaemas' ? 'Nota Emas (Telegram)' : x.feed ? 'Public Gold' : x.src === 'penasihat' ? 'Penasihat' : 'Rekod anda'}</small></span><b>RM ${x.price}${x.feed ? '' : ` <button class="btn ghost small" style="padding:3px 9px;margin-left:6px" data-delprice="${S.prices.indexOf(x)}" aria-label="Padam">✕</button>`}</b></div>`).join('')
@@ -970,30 +981,97 @@ pre.code { background: var(--surface-2); border: 1px solid var(--line); border-r
       : '<div class="empty">Belum ada rekod harga.</div>';
   }
 
+  // ---------- price chart with selectable period ----------
+  let priceRange = 'all', chartState = null;
+  function rangeBounds(sp) {
+    const first = sp[0].date, end = today();
+    if (priceRange === 'custom') {
+      let f = $('pFrom').value || first, t = $('pTo').value || end;
+      if (f > t) [f, t] = [t, f];
+      return [f, t];
+    }
+    const months = { '1m': 1, '3m': 3, '6m': 6, '1y': 12, '3y': 36 }[priceRange];
+    if (!months) return [first, end];
+    const d = new Date(end + 'T12:00'); d.setMonth(d.getMonth() - months);
+    return [`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`, end];
+  }
+  function renderPriceChart(sp) {
+    if (!sp.length) { $('chart').innerHTML = '<div class="empty">Belum ada rekod harga.</div>'; $('chartStats').innerHTML = ''; $('chartRange').textContent = ''; return; }
+    $('pFrom').min = $('pTo').min = sp[0].date; $('pFrom').max = $('pTo').max = today();
+    const [from, to] = rangeBounds(sp);
+    const inRange = sp.filter(p => p.date >= from && p.date <= to);
+    $('chartRange').textContent = inRange.length ? `${fmtDate(inRange[0].date)} – ${fmtDate(inRange[inRange.length - 1].date)}` : '';
+    $('chart').innerHTML = chartSVG(inRange);
+    bindChartTip();
+    if (inRange.length < 2) { $('chartStats').innerHTML = ''; return; }
+    const a = inRange[0], z = inRange[inRange.length - 1];
+    const hi = inRange.reduce((m, p) => p.price > m.price ? p : m), lo = inRange.reduce((m, p) => p.price < m.price ? p : m);
+    const ch = z.price - a.price, pct = ch / a.price * 100, cls = ch >= 0 ? 'pos' : 'neg', sign = ch >= 0 ? '+' : '−';
+    $('chartStats').innerHTML = `<div class="kv"><span>Perubahan dalam tempoh</span><b class="${cls}">${sign}RM ${Math.abs(ch).toFixed(2)} (${sign}${Math.abs(pct).toFixed(1)}%)</b></div>
+      <div class="kv"><span>Harga awal → akhir</span><b>RM ${a.price} → RM ${z.price}</b></div>
+      <div class="kv"><span>Tertinggi</span><b>RM ${hi.price} <small>${fmtDate(hi.date)}</small></b></div>
+      <div class="kv"><span>Terendah</span><b>RM ${lo.price} <small>${fmtDate(lo.date)}</small></b></div>`;
+  }
+
   function chartSVG(sp) {
     // keep the last price per day so the line stays readable
     const byDay = new Map(); sp.forEach(p => byDay.set(p.date, p.price));
-    const pts = [...byDay].map(([date, price]) => ({ t: new Date(date).getTime(), price, date }));
-    if (pts.length < 2) return '<div class="empty">Perlu sekurang-kurangnya 2 tarikh harga untuk graf.</div>';
-    const W = 340, H = 180, L = 40, R = 10, T = 12, B = 24;
+    const pts = [...byDay].map(([date, price]) => ({ t: new Date(date + 'T12:00').getTime(), price, date }));
+    chartState = null;
+    if (pts.length < 2) return '<div class="empty">Tiada cukup harga dalam tempoh ini untuk graf. Pilih tempoh yang lebih panjang.</div>';
+    const W = 340, H = 190, L = 40, R = 10, T = 14, B = 24;
     const t0 = pts[0].t, t1 = pts[pts.length - 1].t;
     let lo = Math.min(...pts.map(p => p.price)), hi = Math.max(...pts.map(p => p.price));
     const padV = (hi - lo) * 0.1 || hi * 0.05; lo -= padV; hi += padV;
     const x = t => L + (t - t0) / (t1 - t0) * (W - L - R);
     const y = v => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
+    chartState = { pts, x, y, W, H, L, R, T, B };
     const line = pts.map((p, i) => `${i ? 'L' : 'M'}${x(p.t).toFixed(1)},${y(p.price).toFixed(1)}`).join('');
     const area = `${line}L${x(t1).toFixed(1)},${H - B}L${L},${H - B}Z`;
     const grid = [0, .5, 1].map(f => { const v = lo + (hi - lo) * f; return `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" style="stroke:var(--grid)" stroke-dasharray="3 3"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end" font-size="10" style="fill:var(--muted)">${Math.round(v)}</text>`; }).join('');
     const buys = S.records.filter(r => r.type === 'buy' && byDay.has(r.date))
-      .map(r => `<circle cx="${x(new Date(r.date).getTime())}" cy="${y(byDay.get(r.date))}" r="3.5" style="fill:var(--accent-ink)"/>`).join('');
-    const last = pts[pts.length - 1];
-    return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Graf harga emas">
+      .map(r => `<circle cx="${x(new Date(r.date + 'T12:00').getTime())}" cy="${y(byDay.get(r.date))}" r="3.5" style="fill:var(--accent-ink)"/>`).join('');
+    const last = pts[pts.length - 1], spanDays = (t1 - t0) / 864e5;
+    const tick = d => spanDays > 400 ? shortM(d) : fmtDate(d).replace(/ \d{4}$/, '');
+    const mid = pts[Math.floor(pts.length / 2)];
+    return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Graf harga emas" style="touch-action:pan-y;cursor:crosshair">
       <defs><linearGradient id="ga" x1="0" x2="0" y1="0" y2="1"><stop offset="0" style="stop-color:var(--gold)" stop-opacity=".35"/><stop offset="1" style="stop-color:var(--gold)" stop-opacity="0"/></linearGradient></defs>
-      ${grid}<path d="${area}" fill="url(#ga)"/><path d="${line}" fill="none" style="stroke:var(--gold)" stroke-width="2.2" stroke-linejoin="round"/>
+      ${grid}<path d="${area}" fill="url(#ga)"/><path d="${line}" fill="none" style="stroke:var(--gold)" stroke-width="${pts.length > 400 ? 1.6 : 2.2}" stroke-linejoin="round"/>
       ${buys}<circle cx="${x(last.t)}" cy="${y(last.price)}" r="4.5" style="fill:var(--gold);stroke:var(--surface)" stroke-width="2"/>
-      <text x="${L}" y="${H - 6}" font-size="10" style="fill:var(--muted)">${shortM(pts[0].date)}</text>
-      <text x="${W - R}" y="${H - 6}" font-size="10" style="fill:var(--muted)" text-anchor="end">${shortM(last.date)}</text>
-    </svg><div class="legend"><span><b style="color:var(--gold)">━</b> Harga GAP 1g</span><span><b style="color:var(--accent-ink)">●</b> Tarikh anda beli</span></div>`;
+      <text x="${L}" y="${H - 6}" font-size="10" style="fill:var(--muted)">${tick(pts[0].date)}</text>
+      <text x="${x(mid.t)}" y="${H - 6}" font-size="10" style="fill:var(--muted)" text-anchor="middle">${tick(mid.date)}</text>
+      <text x="${W - R}" y="${H - 6}" font-size="10" style="fill:var(--muted)" text-anchor="end">${tick(last.date)}</text>
+      <g id="cTip" visibility="hidden" pointer-events="none">
+        <line id="cTipL" y1="${T}" y2="${H - B}" style="stroke:var(--muted)" stroke-dasharray="2 2"/>
+        <circle id="cTipC" r="4.5" style="fill:var(--brand-2);stroke:var(--surface)" stroke-width="2"/>
+        <rect id="cTipR" height="30" rx="6" style="fill:var(--ink)"/>
+        <text id="cTipT" font-size="10.5" style="fill:var(--surface)"><tspan id="cTipD" dy="0"></tspan><tspan id="cTipP" font-weight="700"></tspan></text>
+      </g>
+      <rect x="${L}" y="${T}" width="${W - L - R}" height="${H - T - B}" fill="transparent" id="cHit"/>
+    </svg><div class="legend"><span><b style="color:var(--gold)">━</b> Harga GAP 1g</span><span><b style="color:var(--accent-ink)">●</b> Tarikh anda beli</span><span>Sentuh graf untuk lihat harga</span></div>`;
+  }
+
+  // Tap/drag on the chart shows the price of the nearest day.
+  function bindChartTip() {
+    const svg = $('chart').querySelector('svg'); if (!svg || !chartState) return;
+    const { pts, x, y, W, T } = chartState;
+    const show = e => {
+      const r = svg.getBoundingClientRect(), vx = (e.clientX - r.left) / r.width * W;
+      let best = pts[0], bd = Infinity;
+      for (const p of pts) { const d = Math.abs(x(p.t) - vx); if (d < bd) { bd = d; best = p; } }
+      const px = x(best.t), py = y(best.price);
+      $('cTipL').setAttribute('x1', px); $('cTipL').setAttribute('x2', px);
+      $('cTipC').setAttribute('cx', px); $('cTipC').setAttribute('cy', py);
+      const label = `${fmtDate(best.date)}`, val = `RM ${best.price}`, bw = 84, bx = Math.min(Math.max(px - bw / 2, 2), W - bw - 2), by = py - 40 < T - 10 ? py + 10 : py - 40;
+      $('cTipR').setAttribute('x', bx); $('cTipR').setAttribute('y', by); $('cTipR').setAttribute('width', bw);
+      $('cTipD').setAttribute('x', bx + bw / 2); $('cTipD').setAttribute('y', by + 12); $('cTipD').textContent = label;
+      $('cTipP').setAttribute('x', bx + bw / 2); $('cTipP').setAttribute('y', by + 25); $('cTipP').textContent = val;
+      $('cTipT').setAttribute('text-anchor', 'middle');
+      $('cTip').setAttribute('visibility', 'visible');
+    };
+    svg.addEventListener('pointerdown', show);
+    svg.addEventListener('pointermove', e => { if (e.pointerType === 'mouse' || e.buttons) show(e); });
+    svg.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') $('cTip').setAttribute('visibility', 'hidden'); });
   }
 
   const APP_URL = 'https://viviannajeson.github.io/tabung-emas/';
@@ -1689,9 +1767,19 @@ pre.code { background: var(--surface-2); border: 1px solid var(--line); border-r
   };
 
   document.addEventListener('click', e => {
-    const el = e.target.closest('[data-go],[data-act],[data-month],[data-rec],[data-delprice],[data-f],[data-zpaid],[data-zunpaid],[data-gm],[data-gr]');
+    const el = e.target.closest('[data-go],[data-act],[data-month],[data-rec],[data-delprice],[data-f],[data-zpaid],[data-zunpaid],[data-gm],[data-gr],[data-pr]');
     if (!el) return;
     if (el.dataset.go) { e.preventDefault(); return go(el.dataset.go); }
+    if (el.dataset.pr) {
+      priceRange = el.dataset.pr;
+      $('pRange').querySelectorAll('button').forEach(b => b.classList.toggle('on', b === el));
+      $('pCustom').hidden = priceRange !== 'custom';
+      if (priceRange === 'custom' && !$('pFrom').value) {
+        const d = new Date(); d.setFullYear(d.getFullYear() - 1);
+        $('pFrom').value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; $('pTo').value = today();
+      }
+      return renderPriceChart(sortedPrices());
+    }
     if (el.dataset.gm || el.dataset.gr) {
       if (el.dataset.gm) growthMode = el.dataset.gm; else growthRange = +el.dataset.gr;
       el.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === el));
@@ -1772,6 +1860,7 @@ pre.code { background: var(--surface-2); border: 1px solid var(--line); border-r
   $('zOther').oninput = e => { S.zakat = { ...S.zakat, other: +e.target.value || 0 }; save(); renderZakat(); };
   $('zPrice').oninput = renderZakat;
   $('zHaulOk').onchange = renderZakat;
+  $('pFrom').onchange = $('pTo').onchange = () => renderPriceChart(sortedPrices());
   $('dpPrice').oninput = renderDealerPrice; $('dpTime').oninput = renderDealerPrice;
   $('rOn').onchange = e => { S.reminder = { ...S.reminder, on: e.target.checked }; save(); render(); };
   $('rDay').onchange = e => { S.reminder = { ...S.reminder, day: +e.target.value }; save(); render(); };
