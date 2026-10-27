@@ -340,7 +340,7 @@ label.switch { display: flex; gap: 10px; align-items: center; justify-content: s
 <section class="page" id="p-zakat">
   <button class="btn ghost small" data-go="rec">← Kembali ke Rekod</button>
   <h2 class="title" style="margin-top:14px">Kalkulator zakat emas</h2>
-  <p class="sub">Zakat emas simpanan ialah 2.5% bila emas cukup nisab dan disimpan cukup haul, iaitu setahun Hijrah (354 hari).</p>
+  <p class="sub">Zakat emas simpanan ialah 2.5% bila emas cukup nisab dan disimpan cukup haul, iaitu setahun Hijrah ikut takwim JAKIM.</p>
 
   <div class="card">
     <div class="label">Tetapan kiraan</div>
@@ -365,7 +365,7 @@ label.switch { display: flex; gap: 10px; align-items: center; justify-content: s
     <div id="zOut"></div>
   </div>
 
-  <div class="note" style="margin-bottom:16px">Kalkulator ini anggaran sahaja. Tarikh Hijrah dikira secara anggaran dan mungkin berbeza 1 hingga 2 hari daripada takwim rasmi. Emas perhiasan yang dipakai ada kiraan uruf tersendiri dan tidak dikira di sini. Rujuk pusat zakat negeri anda sebelum membayar.</div>
+  <div class="note" style="margin-bottom:16px">Kalkulator ini anggaran sahaja. Tarikh Hijrah dikira ikut kriteria imkanur rukyah MABIMS yang digunakan dalam takwim JAKIM. Awal Ramadan, Syawal dan Zulhijjah tetap tertakluk kepada pengumuman rasmi. Emas perhiasan yang dipakai ada kiraan uruf tersendiri dan tidak dikira di sini. Rujuk pusat zakat negeri anda sebelum membayar.</div>
 </section>
 
 <!-- ============ HARGA ============ -->
@@ -581,7 +581,7 @@ label.switch { display: flex; gap: 10px; align-items: center; justify-content: s
     const waIntl = wa.startsWith('0') ? '6' + wa : wa;
     $('dealerCard').innerHTML = `<div class="dealer"><img src="${DEALER_PHOTO}" alt="${esc(name)}"><div class="who"><small>Penasihat emas anda</small><h3>${esc(name)}</h3><p>${esc(msg)}</p></div>${wa ? `<div class="act"><a class="btn gold" target="_blank" rel="noopener" href="https://wa.me/${esc(waIntl)}">WhatsApp saya</a><span>${esc(wa)}</span></div>` : ''}</div>`;
     const lp = latestPrice();
-    $('homeSub').textContent = `${fmtDate(today())}${lp ? ` · harga GAP RM ${lp.price}/g` : ' · harga hari ini belum diset'}`;
+    $('homeSub').textContent = `${fmtDate(today())}${hijri(today()) ? ' · ' + hijri(today()) : ''}${lp ? ` · harga GAP RM ${lp.price}/g` : ' · harga hari ini belum diset'}`;
     $('hGrams').textContent = g4(t.grams);
     $('hValue').textContent = p ? rm(t.grams * p) : 'RM –';
     const pnl = p ? t.grams * p - (t.spent - t.received) : 0;
@@ -742,9 +742,9 @@ label.switch { display: flex; gap: 10px; align-items: center; justify-content: s
       const h = due[due.length - 1], z = haulZakat(h);
       body = `<div class="remind" style="margin:12px 0 0"><div><b>Haul cukup pada ${fmtDate(h.end)}</b><span>Zakat ≈ ${z.rm ? rm(z.rm) : g4(z.grams) + 'g emas'} (2.5% daripada ${g2(h.grams)}g)</span></div></div>`;
     } else if (cur) {
-      const left = daysBetween(today(), cur.end), done = HAUL_DAYS - left;
+      const left = daysBetween(today(), cur.end), span = daysBetween(cur.start, cur.end), done = span - left;
       body = `<p style="margin:12px 0 0">Haul bermula <b>${fmtDate(cur.start)}</b>. Cukup haul pada <b>${fmtDate(cur.end)}</b>${hijri(cur.end) ? ` (${hijri(cur.end)})` : ''}.</p>
-        ${barHTML(done / HAUL_DAYS * 100, `${left} hari lagi`)}`;
+        ${barHTML(done / span * 100, `${left} hari lagi`)}`;
     } else {
       body = `<p style="margin:12px 0 0;font-weight:500">Status zakat emas simpanan anda:</p>
         ${barHTML(Math.min(100, t.grams / nisab * 100), Math.floor(Math.min(100, t.grams / nisab * 100)) + '%')}
@@ -757,7 +757,7 @@ label.switch { display: flex; gap: 10px; align-items: center; justify-content: s
       ${due.length ? `<div class="b ok">Haul seterusnya<b>${cur ? daysBetween(today(), cur.end) + ' hari' : '–'}</b></div>`
         : `<div class="b ${ok ? 'ok' : ''}">${ok ? (cur ? 'Anggaran zakat bila cukup haul' : 'Anggaran zakat (2.5%)') : 'Baki ke nisab'}<b>${ok ? (p ? rm(t.grams * p * 0.025) : g4(t.grams * 0.025) + 'g') : g2(nisab - t.grams) + 'g'}</b></div>`}</div>
       <button class="btn gold" data-go="zakat">Kalkulator zakat & haul</button>
-      <div class="hint">Anggaran sahaja. Zakat wajib bila cukup nisab dan cukup haul (setahun Hijrah). Nisab dan cara kiraan ikut pusat zakat negeri masing-masing.</div>`;
+      <div class="hint">Anggaran sahaja. Zakat wajib bila cukup nisab dan cukup haul (setahun Hijrah, takwim JAKIM). Nisab dan cara kiraan ikut pusat zakat negeri masing-masing.</div>`;
 
     const list = [...S.records].filter(r => recFilter === 'all' || r.type === recFilter)
       .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
@@ -859,15 +859,156 @@ label.switch { display: flex; gap: 10px; align-items: center; justify-content: s
       'END:VEVENT', 'END:VCALENDAR', ''].join('\r\n');
   }
 
+  // MABIMS (2021) imkanur rukyah Hijri calendar for Malaysia.
+  // A month starts the day after the evening of ijtimak if, at sunset at a Malaysian reference
+  // point, the moon's altitude is >= 3° and its elongation from the sun >= 6.4°; otherwise a day later.
+  const HJ = (() => {
+    const D2R = Math.PI / 180, R2D = 180 / Math.PI;
+    const sin = x => Math.sin(x * D2R), cos = x => Math.cos(x * D2R), norm = x => ((x % 360) + 360) % 360;
+    const SITES = [[6.35, 99.67], [2.45, 101.86]];   // Langkawi (Kedah), Teluk Kemang (N. Sembilan)
+    const TZ = 8;
+
+    // Julian Ephemeris Day of the new moon for lunation k (Meeus ch. 49)
+    function newMoon(k) {
+      const T = k / 1236.85;
+      let jde = 2451550.09766 + 29.530588861 * k + 0.00015437 * T * T;
+      const E = 1 - 0.002516 * T, M = 2.5534 + 29.1053567 * k, Mp = 201.5643 + 385.81693528 * k + 0.0107582 * T * T,
+        F = 160.7108 + 390.67050284 * k - 0.0016118 * T * T, Om = 124.7746 - 1.56375588 * k;
+      jde += -0.4072 * sin(Mp) + 0.17241 * E * sin(M) + 0.01608 * sin(2 * Mp) + 0.01039 * sin(2 * F)
+        + 0.00739 * E * sin(Mp - M) - 0.00514 * E * sin(Mp + M) + 0.00208 * E * E * sin(2 * M)
+        - 0.00111 * sin(Mp - 2 * F) - 0.00057 * sin(Mp + 2 * F) + 0.00056 * E * sin(2 * Mp + M)
+        - 0.00042 * sin(3 * Mp) + 0.00042 * E * sin(M + 2 * F) + 0.00038 * E * sin(M - 2 * F)
+        - 0.00024 * E * sin(2 * Mp - M) - 0.00017 * sin(Om) - 0.00007 * sin(Mp + 2 * M);
+      return jde;
+    }
+
+    // Sun: apparent ecliptic longitude, distance (Meeus ch. 25, low precision)
+    function sun(jd) {
+      const T = (jd - 2451545) / 36525;
+      const L0 = norm(280.46646 + 36000.76983 * T), M = norm(357.52911 + 35999.05029 * T);
+      const C = (1.914602 - 0.004817 * T) * sin(M) + 0.019993 * sin(2 * M) + 0.000289 * sin(3 * M);
+      const Om = 125.04 - 1934.136 * T;
+      return { lon: norm(L0 + C - 0.00569 - 0.00478 * sin(Om)), lat: 0 };
+    }
+
+    // Moon: geocentric ecliptic longitude/latitude/distance (Meeus ch. 47, main terms)
+    function moon(jd) {
+      const T = (jd - 2451545) / 36525;
+      const Lp = norm(218.3164477 + 481267.88123421 * T), D = norm(297.8501921 + 445267.1114034 * T),
+        M = norm(357.5291092 + 35999.0502909 * T), Mp = norm(134.9633964 + 477198.8675055 * T),
+        F = norm(93.272095 + 483202.0175233 * T), E = 1 - 0.002516 * T;
+      const L = [[0,0,1,0,6288774,-20905355],[2,0,-1,0,1274027,-3699111],[2,0,0,0,658314,-2955968],[0,0,2,0,213618,-569925],
+        [0,1,0,0,-185116,48888],[0,0,0,2,-114332,-3149],[2,0,-2,0,58793,246158],[2,-1,-1,0,57066,-152138],[2,0,1,0,53322,-170733],
+        [2,-1,0,0,45758,-204586],[0,1,-1,0,-40923,-129620],[1,0,0,0,-34720,108743],[0,1,1,0,-30383,104755],[2,0,0,-2,15327,10321],
+        [0,0,1,2,-12528,0],[0,0,1,-2,10980,79661],[4,0,-1,0,10675,-34782],[0,0,3,0,10034,-23210],[4,0,-2,0,8548,-21636],
+        [2,1,-1,0,-7888,24208],[2,1,0,0,-6766,30824],[1,0,-1,0,-5163,-8379],[1,1,0,0,4987,-16675],[2,-1,1,0,4036,-12831],
+        [2,0,2,0,3994,-10445],[4,0,0,0,3861,-11650],[2,0,-3,0,3665,14403],[0,1,-2,0,-2689,-7003],[2,0,-1,2,-2602,0],
+        [2,-1,-2,0,2390,10056],[1,0,1,0,-2348,6322],[2,-2,0,0,2236,-9884]];
+      const B = [[0,0,0,1,5128122],[0,0,1,1,280602],[0,0,1,-1,277693],[2,0,0,-1,173237],[2,0,-1,1,55413],[2,0,-1,-1,46271],
+        [2,0,0,1,32573],[0,0,2,1,17198],[2,0,1,-1,9266],[0,0,2,-1,8822],[2,-1,0,-1,8216],[2,0,-2,-1,4324],[2,0,1,1,4200],
+        [2,1,0,-1,-3359],[2,-1,-1,1,2463],[2,-1,0,1,2211],[2,-1,-1,-1,2065],[0,1,-1,-1,-1870],[4,0,-1,-1,1828]];
+      let sl = 0, sr = 0, sb = 0;
+      for (const [d, m, mp, f, l, r] of L) {
+        const a = d * D + m * M + mp * Mp + f * F, e = Math.abs(m) === 1 ? E : Math.abs(m) === 2 ? E * E : 1;
+        sl += l * e * sin(a); sr += r * e * cos(a);
+      }
+      for (const [d, m, mp, f, b] of B) {
+        const e = Math.abs(m) === 1 ? E : Math.abs(m) === 2 ? E * E : 1;
+        sb += b * e * sin(d * D + m * M + mp * Mp + f * F);
+      }
+      const A1 = 119.75 + 131.849 * T, A2 = 53.09 + 479264.29 * T, A3 = 313.45 + 481266.484 * T;
+      sl += 3958 * sin(A1) + 1962 * sin(Lp - F) + 318 * sin(A2);
+      sb += -2235 * sin(Lp) + 382 * sin(A3) + 175 * sin(A1 - F) + 175 * sin(A1 + F) + 127 * sin(Lp - Mp) - 115 * sin(Lp + Mp);
+      const Om = 125.04 - 1934.136 * T;
+      return { lon: norm(Lp + sl / 1e6 - 0.00478 * sin(Om)), lat: sb / 1e6, dist: 385000.56 + sr / 1000 };
+    }
+
+    function toEq(lon, lat, jd) {
+      const T = (jd - 2451545) / 36525, eps = 23.439291 - 0.0130042 * T;
+      const ra = Math.atan2(sin(lon) * cos(eps) - Math.tan(lat * D2R) * sin(eps), cos(lon)) * R2D;
+      const dec = Math.asin(sin(lat) * cos(eps) + cos(lat) * sin(eps) * sin(lon)) * R2D;
+      return { ra: norm(ra), dec };
+    }
+    function altitude(ra, dec, jd, la, lo) {
+      const gmst = norm(280.46061837 + 360.98564736629 * (jd - 2451545));
+      const H = norm(gmst + lo - ra);
+      return Math.asin(sin(la) * sin(dec) + cos(la) * cos(dec) * cos(H)) * R2D;
+    }
+    // Julian Day of sunset (sun altitude -0.833°) on local civil date y-m-d at a site
+    function sunset(y, m, d, la, lo) {
+      let jd = julian(y, m, d) + (18 - TZ) / 24;   // 18:00 local
+      for (let i = 0; i < 6; i++) {
+        const s = sun(jd), q = toEq(s.lon, 0, jd), a = altitude(q.ra, q.dec, jd, la, lo);
+        jd += (a + 0.833) / 360 / Math.max(.2, cos(la) * cos(q.dec));
+      }
+      return jd;
+    }
+    function julian(y, m, d) {   // JD at 0h UT
+      if (m <= 2) { y -= 1; m += 12; }
+      const A = Math.floor(y / 100), B = 2 - A + Math.floor(A / 4);
+      return Math.floor(365.25 * (y + 4716)) + Math.floor(30.6001 * (m + 1)) + d + B - 1524.5;
+    }
+    const fromJD = jd => { const t = new Date((jd - 2440587.5) * 864e5); return t; };
+    const civil = (jd) => { const t = new Date((jd - 2440587.5) * 864e5 + TZ * 36e5); return [t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate()]; };
+    const iso = ([y, m, d]) => `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const addD = (ymd, n) => { const t = new Date(Date.UTC(ymd[0], ymd[1] - 1, ymd[2] + n)); return [t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate()]; };
+
+    function visible(jdSet, la, lo) {
+      const m = moon(jdSet), s = sun(jdSet);
+      const qm = toEq(m.lon, m.lat, jdSet), qs = toEq(s.lon, 0, jdSet);
+      let alt = altitude(qm.ra, qm.dec, jdSet, la, lo);
+      alt -= Math.asin(6378.14 / m.dist) * R2D * cos(alt);           // topocentric parallax
+      const elong = Math.acos(cos(m.lat) * cos(m.lon - s.lon)) * R2D;
+      return { alt, elong, ok: alt >= 3 && elong >= 6.4 };
+    }
+
+    // First day of the Hijri month that follows lunation k
+    const cache = new Map();
+    function monthStart(k) {
+      if (cache.has(k)) return cache.get(k);
+      const conj = newMoon(k) - 69 / 86400;                          // TT -> UT (approx.)
+      const day = civil(conj);
+      let ok = false;
+      for (const [la, lo] of SITES) {
+        const ss = sunset(day[0], day[1], day[2], la, lo);
+        if (ss > conj && visible(ss, la, lo).ok) { ok = true; break; }
+      }
+      const r = iso(addD(day, ok ? 1 : 2));
+      cache.set(k, r);
+      return r;
+    }
+
+    // Lunation k = 303 is the new moon of 5 Jul 2024, which began Muharram 1446.
+    const K0 = 303, H0 = 1446 * 12;
+    const MONTHS = ['Muharram', 'Safar', 'Rabiulawal', 'Rabiulakhir', 'Jamadilawal', 'Jamadilakhir', 'Rejab', 'Syaaban', 'Ramadan', 'Syawal', 'Zulkaedah', 'Zulhijjah'];
+    const kFor = ds => {   // lunation whose month contains date ds
+      let k = Math.floor((julian(+ds.slice(0, 4), +ds.slice(5, 7), +ds.slice(8, 10)) - 2451550.1) / 29.530588861);
+      while (monthStart(k + 1) <= ds) k++;
+      while (monthStart(k) > ds) k--;
+      return k;
+    };
+    function toHijri(ds) {
+      const k = kFor(ds), start = monthStart(k);
+      const day = Math.round((Date.parse(ds) - Date.parse(start)) / 864e5) + 1;
+      const h = H0 + (k - K0);
+      return { y: Math.floor(h / 12), m: h % 12 + 1, d: day };
+    }
+    function fromHijri(y, m, d) {
+      const k = K0 + (y * 12 + m - 1) - H0, start = monthStart(k);
+      const len = Math.round((Date.parse(monthStart(k + 1)) - Date.parse(start)) / 864e5);
+      return iso(addD(start.split('-').map(Number), Math.min(d, len) - 1));
+    }
+    const format = ds => { const h = toHijri(ds); return `${h.d} ${MONTHS[h.m - 1]} ${h.y} H`; };
+    return { toHijri, fromHijri, format, monthStart, visible, MONTHS };
+  })();
+
   // ---------- zakat ----------
-  const HAUL_DAYS = 354;   // one Hijri year
+  // A haul is one Hijri year: it ends on the same Hijri date a year later (JAKIM/MABIMS calendar).
+  const haulEnd = ds => { const h = HJ.toHijri(ds); return HJ.fromHijri(h.y + 1, h.m, h.d); };
   const nisabG = () => +S.profile.nisab || 85;
   const addDays = (ds, n) => { const d = new Date(ds + 'T12:00'); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
   const daysBetween = (a, b) => Math.round((new Date(b + 'T12:00') - new Date(a + 'T12:00')) / 864e5);
-  const hijri = ds => {
-    try { return new Intl.DateTimeFormat('ms-MY-u-ca-islamic-umalqura', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(ds + 'T12:00')); }
-    catch { return ''; }
-  };
+  const hijri = ds => { try { return HJ.format(ds); } catch { return ''; } };
 
   // Walk the records in date order. A haul starts when the balance reaches nisab, restarts if it
   // drops below, and each completed haul is zakatable on its end balance (or its lowest balance).
@@ -879,8 +1020,8 @@ label.switch { display: flex; gap: 10px; align-items: center; justify-content: s
     const hauls = [];
     let bal = 0, start = null, low = Infinity;
     const closeUntil = limit => {
-      while (start && addDays(start, HAUL_DAYS) <= limit) {
-        const e = addDays(start, HAUL_DAYS);
+      while (start && haulEnd(start) <= limit) {
+        const e = haulEnd(start);
         hauls.push({ start, end: e, status: 'due', grams: useMin ? Math.min(low, bal) : bal });
         start = e; low = bal;
       }
@@ -894,7 +1035,7 @@ label.switch { display: flex; gap: 10px; align-items: center; justify-content: s
       } else if (bal >= nisab - 1e-9) { start = d; low = bal; }
     }
     closeUntil(end);
-    const current = start ? { start, end: addDays(start, HAUL_DAYS), status: 'running', grams: useMin ? Math.min(low, bal) : bal } : null;
+    const current = start ? { start, end: haulEnd(start), status: 'running', grams: useMin ? Math.min(low, bal) : bal } : null;
     return { hauls, current, bal };
   }
   const haulZakat = h => {
@@ -912,12 +1053,12 @@ label.switch { display: flex; gap: 10px; align-items: center; justify-content: s
 
     const rows = [];
     if (Z.current) {
-      const c = Z.current, left = daysBetween(today(), c.end), z = haulZakat(c);
+      const c = Z.current, left = daysBetween(today(), c.end), span = daysBetween(c.start, c.end), z = haulZakat(c);
       rows.push(`<div class="haul">
         <div class="row-title"><b>Haul semasa</b><span class="pill ok">${left} hari lagi</span></div>
-        <div class="kv"><span>Mula (cukup nisab)</span><b>${fmtDate(c.start)}</b></div>
+        <div class="kv"><span>Mula (cukup nisab)</span><b>${fmtDate(c.start)}${hijri(c.start) ? `<br><small>${hijri(c.start)}</small>` : ''}</b></div>
         <div class="kv"><span>Cukup haul</span><b>${fmtDate(c.end)}${hijri(c.end) ? `<br><small>${hijri(c.end)}</small>` : ''}</b></div>
-        ${barHTML((HAUL_DAYS - left) / HAUL_DAYS * 100, Math.round((HAUL_DAYS - left) / HAUL_DAYS * 100) + '%')}
+        ${barHTML((span - left) / span * 100, Math.round((span - left) / span * 100) + '%')}
         <div class="hint" style="margin-top:4px">Jika baki ${S.zakat.method === 'min' ? 'terendah kekal' : 'kekal'} ${g2(c.grams)}g, zakat ≈ ${g4(z.grams)}g emas${z.rm ? ` atau ${rm(z.rm)}` : ''}.</div>
       </div>`);
     }
