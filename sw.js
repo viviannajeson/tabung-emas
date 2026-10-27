@@ -1,5 +1,5 @@
 // Offline cache: app shell first from cache, refreshed in the background.
-const CACHE = 'tabung-emas-v16';
+const CACHE = 'tabung-emas-v17';
 const SHELL = ['./', 'index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png', 'favicon.png'];
 
 self.addEventListener('install', e => {

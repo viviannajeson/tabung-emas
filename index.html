@@ -1348,7 +1348,8 @@ pre.code { background: var(--surface-2); border: 1px solid var(--line); border-r
   const REPO_RAW = 'https://raw.githubusercontent.com/viviannajeson/tabung-emas/main/';
   async function fetchJson(name) {
     // raw.githubusercontent.com serves the latest commit within minutes; the copy next to the app is the fallback
-    for (const u of [REPO_RAW + name, name]) {
+    // inside Claude only files published with the page can be fetched
+    for (const u of window.claude ? [name] : [REPO_RAW + name, name]) {
       try {
         const r = await fetch(u + '?t=' + Date.now(), { cache: 'no-store' });
         if (r.ok) return await r.json();
@@ -1358,7 +1359,6 @@ pre.code { background: var(--surface-2); border: 1px solid var(--line); border-r
   }
   const validRow = r => r && +r.price > 0 && /^\d{4}-\d{2}-\d{2}$/.test(r.date) && r.date <= today();
   async function syncDealerPrice() {
-    if (window.claude) return;
     const hist = await fetchJson('prices.json');
     let rows = Array.isArray(hist?.prices) ? hist.prices.filter(validRow) : [];
     const latest = await fetchJson('price.json');
