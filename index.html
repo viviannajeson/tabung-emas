@@ -438,7 +438,7 @@ pre.code { background: var(--surface-2); border: 1px solid var(--line); border-r
 <!-- ============ HARGA ============ -->
 <section class="page" id="p-price">
   <h2 class="title">Harga emas GAP</h2>
-  <p class="sub">Sejarah harga GAP 1 gram dari Public Gold, berserta harga yang anda rekodkan sendiri.</p>
+  <p class="sub">Sejarah harga GAP 1 gram sejak Januari 2021, berserta harga yang anda rekodkan sendiri.</p>
 
   <div class="card">
     <div class="row-title"><div class="label">Harga GAP hari ini</div><span class="hint" style="margin:0" id="pTime"></span></div>
@@ -965,7 +965,7 @@ pre.code { background: var(--surface-2); border: 1px solid var(--line); border-r
     $('chartRange').textContent = sp.length ? `${fmtDate(sp[0].date)} – ${fmtDate(sp[sp.length - 1].date)}` : '';
     const rows = [...sp].reverse(), shown = priceListAll ? rows : rows.slice(0, 30);
     $('priceList').innerHTML = rows.length ? shown.map(x => `
-      <div class="kv"><span>${fmtDate(x.date)}${x.time ? ' · ' + x.time : ''}<br><small class="hint" style="margin:0">${x.feed ? 'Public Gold' : x.src === 'penasihat' ? 'Penasihat' : 'Rekod anda'}</small></span><b>RM ${x.price}${x.feed ? '' : ` <button class="btn ghost small" style="padding:3px 9px;margin-left:6px" data-delprice="${S.prices.indexOf(x)}" aria-label="Padam">✕</button>`}</b></div>`).join('')
+      <div class="kv"><span>${fmtDate(x.date)}${x.time ? ' · ' + x.time : ''}<br><small class="hint" style="margin:0">${x.src === 'notaemas' ? 'Nota Emas (Telegram)' : x.feed ? 'Public Gold' : x.src === 'penasihat' ? 'Penasihat' : 'Rekod anda'}</small></span><b>RM ${x.price}${x.feed ? '' : ` <button class="btn ghost small" style="padding:3px 9px;margin-left:6px" data-delprice="${S.prices.indexOf(x)}" aria-label="Padam">✕</button>`}</b></div>`).join('')
         + (rows.length > 30 ? `<button class="btn ghost" data-act="price-all" style="margin-top:10px">${priceListAll ? 'Tunjuk 30 terkini sahaja' : `Lihat semua (${rows.length})`}</button>` : '')
       : '<div class="empty">Belum ada rekod harga.</div>';
   }
@@ -1364,7 +1364,7 @@ pre.code { background: var(--surface-2); border: 1px solid var(--line); border-r
     const latest = await fetchJson('price.json');
     if (validRow(latest) && !rows.some(r => r.date === latest.date && +r.price === +latest.price)) rows.push(latest);
     if (!rows.length) return;
-    const next = rows.map(r => ({ date: r.date, price: +r.price, time: /^\d{2}:\d{2}$/.test(r.time) ? r.time : '', src: /publicgold/.test(r.source || hist?.source || '') || !r.source ? 'publicgold' : 'penasihat', feed: true }));
+    const next = rows.map(r => ({ date: r.date, price: +r.price, time: /^\d{2}:\d{2}$/.test(r.time) ? r.time : '', src: r.src === 'notaemas' ? 'notaemas' : /publicgold/.test(r.source || hist?.source || '') || !r.source ? 'publicgold' : 'penasihat', feed: true }));
     if (JSON.stringify(next) === JSON.stringify(feed)) return;
     feed = next;
     try { localStorage.setItem(KEY + '.feed', JSON.stringify(feed)); } catch {}

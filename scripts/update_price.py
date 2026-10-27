@@ -85,7 +85,8 @@ def main():
     hist["source"] = URL
     # one entry per line keeps the file readable and the diffs small
     body = ",\n".join("    " + json.dumps(r) for r in rows)
-    HISTORY.write_text('{\n  "source": %s,\n  "prices": [\n%s\n  ]\n}\n' % (json.dumps(URL), body))
+    head = "".join(f"  {json.dumps(k)}: {json.dumps(v, ensure_ascii=False)},\n" for k, v in hist.items() if k != "prices")
+    HISTORY.write_text("{\n%s  \"prices\": [\n%s\n  ]\n}\n" % (head, body))
     print(f"History: added RM {new['price']} on {new['date']} {new['time']} ({len(rows)} entries)")
 
 
