@@ -226,6 +226,22 @@ label.switch { display: flex; gap: 10px; align-items: center; justify-content: s
 .preset.on { border-color: var(--brand-2); background: var(--brand-soft); box-shadow: inset 0 0 0 1px var(--brand-2); }
 input[type=range] { padding: 0; border: 0; background: none; accent-color: var(--brand-2); height: 28px; }
 dialog { max-height: calc(100% - 24px); overflow-y: auto; }
+.backup { display: grid; gap: 10px; background: var(--brand-soft); border: 1px solid var(--rose); color: var(--ink); border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; }
+.backup b { display: block; font-family: var(--f-display); color: var(--brand-ink); }
+.backup span { font-size: 13.5px; color: var(--ink-2); }
+.badges { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 8px; margin-top: 14px; }
+.badge { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; min-width: 0; }
+.badge .hex { width: 64px; height: 72px; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); background: var(--line); display: grid; place-items: center; }
+.badge .hex > div { width: 58px; height: 66px; clip-path: inherit; background: var(--surface-2); display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--muted); }
+.badge .hex b { font-family: var(--f-display); font-size: 16px; line-height: 1.1; }
+.badge .hex small { font-size: 9.5px; }
+.badge.on .hex { background: var(--gold-grad); }
+.badge.on .hex > div { background: radial-gradient(circle at 50% 35%, #a52234, var(--brand) 70%); color: #ecd27a; }
+.badge > span { font-size: 11.5px; font-weight: 600; line-height: 1.25; color: var(--ink); }
+.badge > small { font-size: 10.5px; color: var(--muted); line-height: 1.2; }
+.badge:not(.on) > span { color: var(--muted); }
+pre.code { background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 13px; overflow-x: auto; margin: 0 0 12px; color: var(--ink); user-select: all; }
+@media (max-width: 360px) { .badges { grid-template-columns: repeat(3, 1fr); } }
 .syncnote { font-size: 12.5px; color: var(--muted); }
 @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
 @media (max-width: 380px) { .balance .big { font-size: 38px; } .cal .r { grid-template-columns: 34px repeat(12, 1fr); gap: 3px; } }
@@ -251,6 +267,7 @@ dialog { max-height: calc(100% - 24px); overflow-y: auto; }
 <section class="page active" id="p-home">
   <div class="sample" id="sampleBar" hidden></div>
   <div class="remind" id="remindBar" hidden></div>
+  <div class="backup" id="backupBar" hidden></div>
   <h2 class="title">Simpanan emas saya</h2>
   <p class="sub" id="homeSub"></p>
 
@@ -302,6 +319,8 @@ dialog { max-height: calc(100% - 24px); overflow-y: auto; }
     <div class="note">Setiap gram dikira. Cuba simpan sedikit setiap bulan, walaupun cuma 1 gram.</div>
     <div class="hint">Bulan yang ada rekod belian ditanda sendiri. Tekan mana-mana bulan untuk ubah.</div>
   </div>
+
+  <div class="card" id="badgeCard"></div>
 
   <div id="dealerCard"></div>
 </section>
@@ -420,6 +439,20 @@ dialog { max-height: calc(100% - 24px); overflow-y: auto; }
     <label class="f">Nisab zakat emas (gram)<input type="number" inputmode="decimal" step="0.01" id="sNisab"></label>
     <div class="hint" style="margin-top:-4px">Lalai 85g. Semak nisab dan uruf ikut pusat zakat negeri anda.</div>
   </div>
+  <div class="card" id="dealerPriceCard" hidden>
+    <div class="label">Harga untuk pelanggan</div>
+    <p class="hint" style="margin:4px 0 12px">App pelanggan di <b>viviannajeson.github.io/tabung-emas</b> ambil harga dari fail <code>price.json</code> dalam repo GitHub anda. Masukkan harga hari ini, salin teks, kemudian tampal dalam editor GitHub dan tekan <b>Commit changes</b>.</p>
+    <div class="grid2">
+      <label class="f">Harga GAP 1g (RM)<input type="number" inputmode="decimal" step="0.01" min="1" id="dpPrice"></label>
+      <label class="f">Masa<input type="time" id="dpTime"></label>
+    </div>
+    <pre id="dpJson" class="code"></pre>
+    <div class="btns">
+      <button class="btn ghost" data-act="dp-copy">Salin teks</button>
+      <a class="btn gold" href="https://github.com/viviannajeson/tabung-emas/edit/main/price.json" target="_blank" rel="noopener">Buka editor GitHub</a>
+    </div>
+    <div class="hint">Pelanggan nampak harga baru dalam lebih kurang 1 hingga 10 minit selepas commit.</div>
+  </div>
   <div class="card" id="reminderCard">
     <div class="label">Peringatan simpanan bulanan</div>
     <p class="hint" style="margin:4px 0 12px">Pilih hari anda biasa simpan emas, contohnya selepas gaji masuk.</p>
@@ -445,6 +478,7 @@ dialog { max-height: calc(100% - 24px); overflow-y: auto; }
   <div class="card stack">
     <div class="label">Backup data</div>
     <div class="syncnote" id="syncNote">Data disimpan dalam browser ini.</div>
+    <div class="syncnote" id="backupNote"></div>
     <button class="btn ghost" data-act="export" id="exportBtn">Muat turun backup (.json)</button>
     <button class="btn ghost" data-act="import">Pulihkan dari backup</button>
     <input type="file" id="importFile" accept="application/json,.json" hidden>
@@ -483,7 +517,9 @@ dialog { max-height: calc(100% - 24px); overflow-y: auto; }
     prices: [],          // { date:'YYYY-MM-DD', price, time }
     monthOverride: {},   // { 'YYYY-MM': true|false }
     reminder: { on: false, day: 25, time: '20:00' },
-    zakat: { method: 'end', other: 0, paid: {} }   // paid: { haulEndDate: { date, amount } }
+    zakat: { method: 'end', other: 0, paid: {} },  // paid: { haulEndDate: { date, amount } }
+    badgesSeen: null,                              // ids already announced; null until first check
+    backup: { last: null, snooze: null }
   });
 
   // Example data, flagged so the page labels it and offers to clear it.
@@ -571,7 +607,7 @@ dialog { max-height: calc(100% - 24px); overflow-y: auto; }
   function renderHeader() {
     const lp = latestPrice();
     $('hdrPriceVal').textContent = lp ? 'RM ' + lp.price.toLocaleString('en-MY') : 'RM –';
-    $('hdrPriceTime').textContent = lp ? (lp.date === today() ? 'Hari ini' + (lp.time ? ' · ' + lp.time : '') : fmtDate(lp.date)) : 'tekan untuk set';
+    $('hdrPriceTime').textContent = lp ? (lp.src === 'penasihat' ? 'Penasihat · ' : '') + (lp.date === today() ? (lp.time || 'Hari ini') : fmtDate(lp.date)) : 'tekan untuk set';
     $('hdrTag').textContent = 'Bimbingan ' + (S.profile.dealer || DEALER.name);
   }
 
@@ -1118,7 +1154,103 @@ dialog { max-height: calc(100% - 24px); overflow-y: auto; }
       if (document.activeElement !== $(id)) $(id).value = p[k] ?? '';
   }
 
-  function render() { renderHeader(); renderHome(); renderGoal(); renderRec(); renderZakat(); renderPrice(); renderProf(); }
+  // ---------- achievements ----------
+  function bestStreak() {
+    const bm = buyMonths(), keys = [...bm, ...Object.keys(S.monthOverride)].sort();
+    if (!keys.length) return 0;
+    let k = keys[0], run = 0, best = 0;
+    const end = curKey();
+    while (k <= end) { run = savedIn(k, bm) ? run + 1 : 0; best = Math.max(best, run); k = addMonths(k, 1); }
+    return best;
+  }
+  function badgeList() {
+    const t = totals(), st = bestStreak(), nisab = nisabG(), G = S.goal;
+    const gp = G ? t.grams / G.grams * 100 : 0;
+    const paid = Object.keys(S.zakat.paid || {}).length;
+    const grams = (n, label) => ({ id: 'g' + n, top: n + 'g', sub: 'terkumpul', name: label, ok: t.grams >= n, need: `Lagi ${g2(Math.max(0, n - t.grams))}g` });
+    const streak = n => ({ id: 's' + n, top: String(n), sub: 'bulan', name: `${n} bulan berturut`, ok: st >= n, need: `Terbaik ${st} bulan` });
+    return [
+      { id: 'first', top: '1', sub: 'simpanan', name: 'Simpanan pertama', ok: t.buys >= 1, need: 'Rekod belian pertama' },
+      grams(1, '1 gram pertama'), grams(10, '10 gram'), grams(50, '50 gram'), grams(100, '100 gram'),
+      streak(3), streak(6), streak(12),
+      { id: 'nisab', top: 'Nisab', sub: `${nisab}g`, name: 'Cukup nisab zakat', ok: t.grams >= nisab, need: `Lagi ${g2(Math.max(0, nisab - t.grams))}g` },
+      { id: 'goal50', top: '50%', sub: 'matlamat', name: 'Separuh matlamat', ok: gp >= 50, need: G ? `${gp.toFixed(1)}% sekarang` : 'Tetapkan matlamat' },
+      { id: 'goal100', top: '100%', sub: 'matlamat', name: 'Matlamat tercapai', ok: gp >= 100, need: G ? `${gp.toFixed(1)}% sekarang` : 'Tetapkan matlamat' },
+      { id: 'zakat', top: '✓', sub: 'zakat', name: 'Zakat pertama dibayar', ok: paid > 0, need: 'Tanda bayaran zakat' }
+    ];
+  }
+  function renderBadges() {
+    const list = badgeList(), got = list.filter(b => b.ok).length;
+    $('badgeCard').innerHTML = `<div class="row-title"><div class="label">Pencapaian</div><span class="pill ${got ? 'ok' : 'grey'}">${got} / ${list.length}</span></div>
+      <div class="badges">${list.map(b => `<div class="badge${b.ok ? ' on' : ''}" title="${esc(b.name)}">
+        <div class="hex"><div><b>${b.top}</b><small>${b.sub}</small></div></div>
+        <span>${esc(b.name)}</span>${b.ok ? '' : `<small>${esc(b.need)}</small>`}</div>`).join('')}</div>`;
+    // announce newly earned badges once (not for sample data, not on the very first check)
+    const ids = list.filter(b => b.ok).map(b => b.id);
+    if (S.sample) return;
+    if (S.badgesSeen === null || S.badgesSeen === undefined) { S.badgesSeen = ids; save(); return; }
+    const fresh = list.filter(b => b.ok && !S.badgesSeen.includes(b.id));
+    if (fresh.length) {
+      S.badgesSeen = [...new Set([...S.badgesSeen, ...ids])]; save();
+      setTimeout(() => toast(`🏅 Pencapaian baru: ${fresh.map(b => b.name).join(', ')}`), 400);
+    }
+  }
+
+  // ---------- backup reminder (standalone app only; the Claude link saves to the account) ----------
+  function renderBackup() {
+    const B = S.backup || {}, last = B.last;
+    $('backupNote').textContent = last ? `Backup terakhir: ${fmtDate(last)}` : (window.claude ? '' : 'Belum pernah buat backup.');
+    const due = !window.claude && !S.sample &&
+      (last ? daysBetween(last, today()) >= 30 : S.records.length >= 3) && (!B.snooze || B.snooze <= today());
+    $('backupBar').hidden = !due;
+    if (due) $('backupBar').innerHTML = `<div><b>Masa untuk backup</b><span>Rekod anda disimpan dalam telefon ini sahaja. ${last ? `Backup terakhir ${fmtDate(last)}.` : 'Anda belum pernah buat backup.'} Simpan salinan supaya rekod tidak hilang jika tukar telefon.</span></div>
+      <div class="btns"><button class="btn gold small" data-act="backup-share">Backup sekarang</button><button class="btn ghost small" data-act="backup-later">Nanti</button></div>`;
+  }
+  const backupJson = () => JSON.stringify(S, null, 2), backupName = () => `tabung-emas-backup-${today()}.json`;
+  async function shareBackup() {
+    const file = new File([backupJson()], backupName(), { type: 'application/json' });
+    const data = { files: [file], title: 'Backup Tabung Emas', text: `Backup Tabung Emas ${fmtDate(today())}. Simpan fail ini. Untuk pulihkan: Profil → Pulihkan dari backup.` };
+    if (!window.claude && navigator.canShare?.(data)) {
+      try { await navigator.share(data); markBackup(); return; }
+      catch (e) { if (e.name === 'AbortError') return; }
+    }
+    exportBackup();
+  }
+  const markBackup = () => { S.backup = { last: today(), snooze: null }; save(); render(); toast('Backup disimpan'); };
+  function exportBackup() {
+    if (!downloads) {
+      // Outside Claude (e.g. the standalone web app) a plain browser download works.
+      if (window.claude) return toast('Muat turun tidak tersedia di sini');
+      const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([backupJson()], { type: 'application/json' })), download: backupName() });
+      document.body.append(a); a.click(); a.remove(); return markBackup();
+    }
+    downloads.save({ filename: backupName(), data: backupJson() })
+      .then(markBackup, e => { if (e?.code !== 'declined') toast('Backup tidak dapat disimpan'); });
+  }
+
+  // ---------- price published by the adviser (price.json next to the standalone app) ----------
+  async function syncDealerPrice() {
+    if (window.claude) return;
+    try {
+      const r = await fetch('price.json?t=' + Date.now(), { cache: 'no-store' });
+      if (!r.ok) return;
+      const j = await r.json(), pr = +j.price, d = String(j.date || '');
+      if (!(pr > 0) || !/^\d{4}-\d{2}-\d{2}$/.test(d) || d > today()) return;
+      if (S.prices.some(p => p.date === d && p.price === pr)) return;
+      S.prices.push({ date: d, price: pr, time: /^\d{2}:\d{2}$/.test(j.time) ? j.time : '', src: 'penasihat' });
+      save(); render();
+    } catch {}
+  }
+  function renderDealerPrice() {
+    // only on the adviser's own Claude link
+    $('dealerPriceCard').hidden = !window.claude;
+    if (!window.claude) return;
+    if (document.activeElement !== $('dpPrice') && !$('dpPrice').value && price()) $('dpPrice').value = price();
+    if (!$('dpTime').value) { const n = new Date(); $('dpTime').value = `${pad(n.getHours())}:${pad(n.getMinutes())}`; }
+    $('dpJson').textContent = JSON.stringify({ price: +$('dpPrice').value || 0, date: today(), time: $('dpTime').value }, null, 2);
+  }
+
+  function render() { renderHeader(); renderHome(); renderBadges(); renderBackup(); renderGoal(); renderRec(); renderZakat(); renderPrice(); renderProf(); renderDealerPrice(); }
 
   // ---------- dialogs ----------
   const dlg = $('dlg'), form = $('dlgForm');
@@ -1468,15 +1600,12 @@ dialog { max-height: calc(100% - 24px); overflow-y: auto; }
         if (S.goal.unit === 'g') S.goal.targetRM = S.goal.grams * p; else S.goal.grams = S.goal.targetRM / p;
         save(); render(); return toast(`Sasaran dikira semula: ${g2(S.goal.grams)}g`);
       }
-      case 'export': {
-        if (!downloads) {
-          // Outside Claude (e.g. the standalone web app) a plain browser download works.
-          if (window.claude) return toast('Muat turun tidak tersedia di sini');
-          const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([JSON.stringify(S, null, 2)], { type: 'application/json' })), download: `tabung-emas-backup-${today()}.json` });
-          document.body.append(a); a.click(); a.remove(); return;
-        }
-        downloads.save({ filename: `tabung-emas-backup-${today()}.json`, data: JSON.stringify(S, null, 2) })
-          .then(() => toast('Backup disimpan'), e => { if (e?.code !== 'declined') toast('Backup tidak dapat disimpan'); });
+      case 'export': return exportBackup();
+      case 'backup-share': return shareBackup();
+      case 'backup-later': S.backup = { ...S.backup, snooze: addDays(today(), 7) }; save(); render(); return toast('Kami ingatkan semula minggu depan');
+      case 'dp-copy': {
+        const txt = $('dpJson').textContent;
+        navigator.clipboard?.writeText(txt).then(() => toast('Teks disalin'), () => { getSelection().selectAllChildren($('dpJson')); toast('Tekan lama untuk salin'); });
         return;
       }
       case 'import': return $('importFile').click();
@@ -1507,6 +1636,7 @@ dialog { max-height: calc(100% - 24px); overflow-y: auto; }
   $('zOther').oninput = e => { S.zakat = { ...S.zakat, other: +e.target.value || 0 }; save(); renderZakat(); };
   $('zPrice').oninput = renderZakat;
   $('zHaulOk').onchange = renderZakat;
+  $('dpPrice').oninput = renderDealerPrice; $('dpTime').oninput = renderDealerPrice;
   $('rOn').onchange = e => { S.reminder = { ...S.reminder, on: e.target.checked }; save(); render(); };
   $('rDay').onchange = e => { S.reminder = { ...S.reminder, day: +e.target.value }; save(); render(); };
   $('rTime').onchange = e => { if (e.target.value) { S.reminder = { ...S.reminder, time: e.target.value }; save(); render(); } };
@@ -1518,6 +1648,8 @@ dialog { max-height: calc(100% - 24px); overflow-y: auto; }
 
   render();
   try { const t = sessionStorage.getItem(KEY + '.tab'); if (t) go(t); } catch {}
+  syncDealerPrice();
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') syncDealerPrice(); });
   let downloads = null;
   (async () => {
     const claude = window.claude;
