@@ -242,6 +242,10 @@ dialog { max-height: calc(100% - 24px); overflow-y: auto; }
 .badge:not(.on) > span { color: var(--muted); }
 pre.code { background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 13px; overflow-x: auto; margin: 0 0 12px; color: var(--ink); user-select: all; }
 @media (max-width: 360px) { .badges { grid-template-columns: repeat(3, 1fr); } }
+.chips { display: inline-flex; gap: 4px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 999px; padding: 3px; }
+.chips button { border: 0; background: none; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--muted); padding: 5px 12px; border-radius: 999px; cursor: pointer; }
+.chips button.on { background: var(--brand); color: var(--on-dark); }
+#gStats { margin-top: 6px; }
 .syncnote { font-size: 12.5px; color: var(--muted); }
 @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
 @media (max-width: 380px) { .brand h1 { font-size: 16.5px; } .brand::before { width: 28px; height: 28px; } .pricebox { padding: 6px 9px; } .balance .big { font-size: 38px; } .cal .r { grid-template-columns: 34px repeat(12, 1fr); gap: 3px; } }
@@ -356,6 +360,14 @@ pre.code { background: var(--surface-2); border: 1px solid var(--line); border-r
   <div class="grid2" style="margin:14px 0 16px">
     <div class="tile"><div class="t">Jumlah disimpan</div><div class="v" id="rSpent">RM 0</div><div class="s" id="rSpentS"></div></div>
     <div class="tile"><div class="t">Emas disimpan</div><div class="v" id="rGrams">0g</div><div class="s">jumlah gram anda</div></div>
+  </div>
+
+  <div class="card" id="growth">
+    <div class="row-title"><div class="label">Graf simpanan</div>
+      <div class="chips" id="gMode"><button class="on" data-gm="g">Gram</button><button data-gm="rm">Nilai RM</button></div></div>
+    <div class="chips" id="gRange" style="margin-top:10px"><button data-gr="6">6 bulan</button><button class="on" data-gr="12">12 bulan</button><button data-gr="0">Semua</button></div>
+    <div id="gChart" style="margin-top:12px"></div>
+    <div id="gStats"></div>
   </div>
 
   <div class="card" id="zakat"></div>
@@ -620,9 +632,9 @@ pre.code { background: var(--surface-2); border: 1px solid var(--line); border-r
     if (S.sample) {
       bar.hidden = false;
       bar.innerHTML = `<span><b>Data contoh.</b> Bukan rekod sebenar anda.</span><button class="btn ghost small" data-act="clear-sample">Padam & mula sendiri</button>`;
-    } else if (!S.records.length && !S.prices.length) {
+    } else if (!S.records.length) {
       bar.hidden = false;
-      bar.innerHTML = `<span>Mula dengan set harga GAP hari ini, atau lihat dulu dengan data contoh.</span><button class="btn ghost small" data-act="load-sample">Lihat data contoh</button>`;
+      bar.innerHTML = `<span>Mula dengan rekod belian pertama anda, atau lihat dulu dengan data contoh.</span><button class="btn ghost small" data-act="load-sample">Lihat data contoh</button>`;
     } else bar.hidden = true;
   }
 
@@ -780,7 +792,67 @@ pre.code { background: var(--surface-2); border: 1px solid var(--line); border-r
   }
 
   let recFilter = 'all';
+  // ---------- savings growth chart ----------
+  let growthMode = 'g', growthRange = 12;
+  const niceMax = v => { if (v <= 0) return 1; const p = 10 ** Math.floor(Math.log10(v)), n = v / p; return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * p; };
+  const monthEnd = k => { const [y, m] = k.split('-').map(Number); return `${k}-${pad(new Date(y, m, 0).getDate())}`; };
+  function growthSeries() {
+    if (!S.records.length) return [];
+    const first = S.records.map(r => mkey(r.date)).sort()[0], ck = curKey();
+    let start = growthRange ? addMonths(ck, -(growthRange - 1)) : first;
+    if (start < first) start = first;
+    const firstPrice = sortedPrices()[0]?.price || 0, out = [];
+    for (let k = start; k <= ck; k = addMonths(k, 1)) {
+      const end = k === ck ? today() : monthEnd(k);
+      const grams = S.records.filter(r => r.date <= end).reduce((a, r) => a + (r.type === 'buy' ? r.grams : -r.grams), 0);
+      const added = S.records.filter(r => mkey(r.date) === k).reduce((a, r) => a + (r.type === 'buy' ? r.grams : -r.grams), 0);
+      const pr = priceOn(end)?.price || firstPrice;
+      out.push({ k, grams, added, value: pr ? grams * pr : 0 });
+    }
+    return out;
+  }
+  function renderGrowth() {
+    const pts = growthSeries(), rmMode = growthMode === 'rm';
+    if (!pts.length) {
+      $('gChart').innerHTML = '<div class="empty">Graf akan muncul selepas rekod belian pertama.</div>';
+      $('gStats').innerHTML = ''; return;
+    }
+    const val = p => rmMode ? p.value : p.grams;
+    const W = 340, H = 190, L = 44, R = 12, T = 18, B = 26, n = pts.length;
+    const max = niceMax(Math.max(...pts.map(val)) * 1.05);
+    const x = i => n === 1 ? (L + W - R) / 2 : L + i / (n - 1) * (W - L - R);
+    const y = v => T + (1 - v / max) * (H - T - B);
+    const fmtV = v => rmMode ? (v >= 1000 ? `${+(v / 1000).toFixed(2)}k` : Math.round(v)) : (v >= 100 ? Math.round(v) : +v.toFixed(1));
+    const line = pts.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(val(p)).toFixed(1)}`).join('');
+    const area = n > 1 ? `${line}L${x(n - 1).toFixed(1)},${H - B}L${x(0).toFixed(1)},${H - B}Z` : '';
+    const grid = [0, .25, .5, .75, 1].map(f => `<line x1="${L}" x2="${W - R}" y1="${y(max * f).toFixed(1)}" y2="${y(max * f).toFixed(1)}" style="stroke:var(--grid)" stroke-dasharray="${f ? '3 3' : ''}"/>
+      <text x="${L - 6}" y="${(y(max * f) + 3.5).toFixed(1)}" text-anchor="end" font-size="10" style="fill:var(--muted)">${fmtV(max * f)}${rmMode || f ? '' : 'g'}</text>`).join('');
+    const every = Math.ceil(n / 6);
+    const labels = pts.map((p, i) => (i % every === 0 || i === n - 1) && !(i !== n - 1 && n - 1 - i < every / 2)
+      ? `<text x="${x(i).toFixed(1)}" y="${H - 8}" text-anchor="middle" font-size="10" style="fill:var(--muted)">${MS[+p.k.slice(5) - 1]}${n > 12 || p.k.slice(5) === '01' ? ' ' + p.k.slice(2, 4) : ''}</text>` : '').join('');
+    const dots = pts.map((p, i) => p.added > 0 ? `<circle cx="${x(i).toFixed(1)}" cy="${y(val(p)).toFixed(1)}" r="3.5" style="fill:var(--gold);stroke:var(--surface)" stroke-width="1.5"><title>${longM(p.k)}: +${g4(p.added)}g</title></circle>` : '').join('');
+    const last = pts[n - 1], lx = x(n - 1), ly = y(val(last));
+    const tag = rmMode ? rm(last.value, 0) : `${g2(last.grams)}g`;
+    $('gChart').innerHTML = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Graf ${rmMode ? 'nilai' : 'gram'} simpanan emas">
+      <defs><linearGradient id="gg" x1="0" x2="0" y1="0" y2="1"><stop offset="0" style="stop-color:var(--gold)" stop-opacity=".45"/><stop offset="1" style="stop-color:var(--gold)" stop-opacity="0"/></linearGradient></defs>
+      ${grid}${area ? `<path d="${area}" fill="url(#gg)"/>` : ''}<path d="${line}" fill="none" style="stroke:var(--brand-2)" stroke-width="2.4" stroke-linejoin="round"/>
+      ${dots}<circle cx="${lx}" cy="${ly}" r="5" style="fill:var(--brand-2);stroke:var(--surface)" stroke-width="2"/>
+      <text x="${Math.min(lx, W - R - 2)}" y="${Math.max(ly - 10, 12)}" text-anchor="end" font-size="11" font-weight="700" style="fill:var(--ink)">${tag}</text>
+      ${labels}</svg>
+      <div class="legend"><span><b style="color:var(--brand-2)">━</b> ${rmMode ? 'Nilai emas (ikut harga direkod)' : 'Gram terkumpul'}</span><span><b style="color:var(--gold)">●</b> Bulan menyimpan</span></div>`;
+
+    // summary (all-time)
+    const t = totals(), p = price();
+    const first = S.records.map(r => mkey(r.date)).sort()[0], span = monthsBetween(first, curKey()) + 1;
+    const net = t.spent - t.received, gain = p ? t.grams * p - net : 0;
+    $('gStats').innerHTML = `<div class="kv"><span>Jumlah transaksi</span><b>${S.records.length} kali</b></div>
+      <div class="kv"><span>Purata simpanan</span><b>${g4(t.buyGrams / span)}g / bulan</b></div>
+      <div class="kv"><span>Tempoh menabung</span><b>${span} bulan</b></div>
+      <div class="kv"><span>Kenaikan nilai</span><b class="${gain >= 0 ? 'pos' : 'neg'}">${p && net ? `${gain >= 0 ? '+' : '−'}${rm(Math.abs(gain))} (${gain >= 0 ? '+' : '−'}${Math.abs(gain / net * 100).toFixed(1)}%)` : '–'}</b></div>`;
+  }
+
   function renderRec() {
+    renderGrowth();
     const t = totals(), p = price();
     $('rSub').textContent = `${S.records.length} rekod simpanan`;
     $('rSpent').textContent = rm(t.spent);
@@ -1577,9 +1649,14 @@ pre.code { background: var(--surface-2); border: 1px solid var(--line); border-r
   };
 
   document.addEventListener('click', e => {
-    const el = e.target.closest('[data-go],[data-act],[data-month],[data-rec],[data-delprice],[data-f],[data-zpaid],[data-zunpaid]');
+    const el = e.target.closest('[data-go],[data-act],[data-month],[data-rec],[data-delprice],[data-f],[data-zpaid],[data-zunpaid],[data-gm],[data-gr]');
     if (!el) return;
     if (el.dataset.go) { e.preventDefault(); return go(el.dataset.go); }
+    if (el.dataset.gm || el.dataset.gr) {
+      if (el.dataset.gm) growthMode = el.dataset.gm; else growthRange = +el.dataset.gr;
+      el.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === el));
+      return renderGrowth();
+    }
     if (el.dataset.zunpaid) { e.preventDefault(); delete S.zakat.paid[el.dataset.zunpaid]; save(); render(); return; }
     if (el.dataset.zpaid) {
       const h = zakatHauls().hauls.find(x => x.end === el.dataset.zpaid), z = h ? haulZakat(h) : { rm: 0 };
