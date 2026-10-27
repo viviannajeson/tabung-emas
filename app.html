@@ -214,6 +214,17 @@ label.switch { display: flex; gap: 10px; align-items: center; justify-content: s
 .haul:last-child { border-bottom: 0; padding-bottom: 0; }
 .haul .row-title b { font-family: var(--f-display); font-size: 14.5px; }
 .kv small { font-weight: 400; color: var(--muted); }
+.calc-entry { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 12px; text-align: left; background: var(--emerald-soft); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; margin-bottom: 14px; cursor: pointer; font: inherit; color: var(--ink); }
+.calc-entry b { display: block; font-family: var(--f-display); color: var(--emerald-ink); }
+.calc-entry small { color: var(--ink-2); font-size: 13px; }
+.calc-entry > span:last-child { font-size: 26px; color: var(--emerald-ink); }
+.presets { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.preset { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; font: inherit; color: var(--ink); cursor: pointer; min-width: 0; }
+.preset span { font-size: 14px; }
+.preset b { font-family: var(--f-display); font-size: 17px; color: var(--amber-ink); }
+.preset.on { border-color: var(--emerald-2); background: var(--emerald-soft); box-shadow: inset 0 0 0 1px var(--emerald-2); }
+input[type=range] { padding: 0; border: 0; background: none; accent-color: var(--emerald-2); height: 28px; }
+dialog { max-height: calc(100% - 24px); overflow-y: auto; }
 .syncnote { font-size: 12.5px; color: var(--muted); }
 @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
 @media (max-width: 380px) { .balance .big { font-size: 38px; } .cal .r { grid-template-columns: 34px repeat(12, 1fr); gap: 3px; } }
@@ -298,6 +309,7 @@ label.switch { display: flex; gap: 10px; align-items: center; justify-content: s
 <section class="page" id="p-goal">
   <h2 class="title">Matlamat simpanan</h2>
   <p class="sub">Simpan emas untuk apa? Kami kira berapa gram perlu setiap bulan.</p>
+  <button class="calc-entry" data-act="goal-calc"><span><b>Kalkulator matlamat emas</b><small>Haji, umrah, kahwin, pendidikan anak… berapa gram sebulan?</small></span><span aria-hidden="true">›</span></button>
   <div id="goalView"></div>
 
   <h2 class="title" style="margin-top:24px">Bajet simpanan bulanan</h2>
@@ -608,13 +620,13 @@ label.switch { display: flex; gap: 10px; align-items: center; justify-content: s
     // goal
     const G = S.goal;
     if (!G) {
-      $('homeGoal').innerHTML = `<div class="label">Matlamat</div><p>Belum ada matlamat. Simpan emas untuk apa? Umrah, rumah, pendidikan anak, percutian…</p><button class="btn maroon" data-go="goal">Tetapkan matlamat</button>`;
+      $('homeGoal').innerHTML = `<div class="label">Matlamat</div><p>Belum ada matlamat. Simpan emas untuk apa? Haji, umrah, kahwin, pendidikan anak…</p><button class="btn gold" data-act="goal-calc">Kira matlamat emas saya</button>`;
     } else {
       const pct = Math.min(100, t.grams / G.grams * 100), left = Math.max(0, G.grams - t.grams);
       const eta = etaInfo(left);
       $('homeGoal').innerHTML = `
         <div class="row-title"><div class="label">Matlamat: ${esc(G.name)}</div><span class="hint" style="margin:0">${g2(t.grams)}g / ${g2(G.grams)}g</span></div>
-        <div class="hint">Sasaran ${rm(G.targetRM, 0)} = ${g2(G.grams)}g (harga RM ${G.priceAtSet}/g semasa matlamat ditetapkan)</div>
+        <div class="hint">${G.unit === 'g' ? `Sasaran ${g2(G.grams)}g emas dalam ${G.years} tahun` : `Sasaran ${rm(G.targetRM, 0)} = ${g2(G.grams)}g (harga RM ${G.priceAtSet}/g semasa matlamat ditetapkan)`}</div>
         ${barHTML(pct, pct.toFixed(1) + '%')}
         <div class="ticks"><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div>
         <p style="margin:14px 0 0">${left <= 0 ? '🎉 <b>Tahniah!</b> Matlamat sudah dicapai.' :
@@ -675,7 +687,7 @@ label.switch { display: flex; gap: 10px; align-items: center; justify-content: s
   function renderGoal() {
     const G = S.goal, t = totals(), p = price();
     if (!G) {
-      $('goalView').innerHTML = `<div class="card"><p style="margin-top:0">Anda belum ada matlamat.</p><button class="btn maroon" data-act="edit-goal">Tetapkan matlamat</button></div>`;
+      $('goalView').innerHTML = `<div class="card"><p style="margin-top:0">Anda belum ada matlamat. Guna kalkulator di atas untuk pilih matlamat, atau tetapkan sasaran dalam RM.</p><button class="btn ghost" data-act="edit-goal">Tetapkan sasaran dalam RM</button></div>`;
     } else {
       const months = G.years * 12, perM = G.grams / months, pct = Math.min(100, t.grams / G.grams * 100);
       const yrs = Array.from({ length: Math.min(G.years, 30) }, (_, i) => {
@@ -686,7 +698,7 @@ label.switch { display: flex; gap: 10px; align-items: center; justify-content: s
         <div class="hero">
           <div class="label" style="color:rgba(255,255,255,.8)">Matlamat: ${esc(G.name)}</div>
           <div class="big">${g2(G.grams)}g</div>
-          <div style="opacity:.85;font-size:13px;margin-bottom:12px">Sasaran ${rm(G.targetRM, 0)} · dalam ${G.years} tahun · harga RM ${G.priceAtSet}/g</div>
+          <div style="opacity:.85;font-size:13px;margin-bottom:12px">${G.unit === 'g' ? `Sasaran ${g2(G.grams)}g emas · dalam ${G.years} tahun` : `Sasaran ${rm(G.targetRM, 0)} · dalam ${G.years} tahun · harga RM ${G.priceAtSet}/g`}</div>
           <div class="grid2">
             <div class="tile"><div class="t">Simpan sebulan</div><div class="v">${(perM).toFixed(3)}g</div></div>
             <div class="tile"><div class="t">Simpan setahun</div><div class="v">${g2(perM * 12)}g</div></div>
@@ -1305,6 +1317,84 @@ label.switch { display: flex; gap: 10px; align-items: center; justify-content: s
     draw();
   }
 
+  // ---------- goal calculator (target in grams) ----------
+  const PRESETS = [
+    ['Haji (Muassasah)', 50], ['Haji (Pakej)', 200], ['Umrah', 20], ['Kahwin', 50],
+    ['Pendidikan anak', 200], ['Persaraan', 2000], ['Dana kecemasan', 100], ['Deposit rumah', 100],
+    ['Deposit kereta', 10], ['Matlamat lain', 0]
+  ];
+  const gramsLabel = g => g >= 1000 ? `${+(g / 1000).toFixed(2)}kg` : `${+g.toFixed(2)}g`;
+
+  function goalCalc() {
+    let pick = 0, years = 5;
+    const p = price();
+    form.onsubmit = null;
+    form.innerHTML = `<div class="row-title" style="flex-wrap:nowrap;align-items:flex-start"><h2 style="margin:0">Kalkulator matlamat emas</h2><button class="btn ghost small" value="cancel" aria-label="Tutup" style="flex-shrink:0">✕</button></div>
+      <p class="sub" style="margin:4px 0 14px">Berapa gram sebulan untuk capai matlamat anda?</p>
+      <div class="kv" style="background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:16px"><span>Harga GAP 1g</span><b>${p ? 'RM ' + p : '<a href="#" data-act="set-price" style="color:var(--emerald-ink)">Set harga</a>'}</b></div>
+      <div class="label" style="margin-bottom:8px">Pilih matlamat</div>
+      <div class="presets" id="gcPresets">${PRESETS.map(([n, g], i) => `<button type="button" class="preset${i === 0 ? ' on' : ''}" data-i="${i}"><span>${n}</span><b>${g ? gramsLabel(g) : 'Sendiri'}</b></button>`).join('')}</div>
+      <div id="gcCustom" hidden class="grid2" style="margin-top:12px">
+        <label class="f">Nama matlamat<input id="gcName" maxlength="40" placeholder="cth. Rumah pertama"></label>
+        <label class="f">Sasaran (gram)<input type="number" id="gcGrams" min="1" step="1" inputmode="decimal" placeholder="cth. 150"></label>
+      </div>
+      <div class="row-title" style="margin-top:16px"><div class="label">Tempoh</div><b id="gcYearsTxt" style="font-family:var(--f-display);color:var(--emerald-ink)"></b></div>
+      <input type="range" id="gcYears" min="1" max="20" step="1" value="${years}" aria-label="Tempoh dalam tahun">
+      <div class="ticks keep"><span>1 thn</span><span>10 thn</span><span>20 thn</span></div>
+      <div id="gcOut"></div>`;
+    if (!dlg.open) dlg.showModal();
+    const cur = () => {
+      if (pick === PRESETS.length - 1) return [$('gcName').value.trim() || 'Matlamat lain', +$('gcGrams').value || 0];
+      return PRESETS[pick];
+    };
+    const draw = () => {
+      const [name, grams] = cur();
+      $('gcYearsTxt').textContent = `${years} tahun`;
+      if (!grams) { $('gcOut').innerHTML = '<p class="hint">Masukkan sasaran dalam gram.</p>'; return; }
+      const perM = grams / (years * 12), have = totals().grams;
+      const step = years <= 10 ? 1 : 2;
+      const rows = [];
+      for (let y = step; y <= years; y += step) rows.push(y);
+      if (rows[rows.length - 1] !== years) rows.push(years);
+      $('gcOut').innerHTML = `
+        <div class="hero" style="margin-top:16px">
+          <div style="font-family:var(--f-display);font-weight:600">${esc(name)} · ${gramsLabel(grams)} · ${years} tahun</div>
+          <div class="grid2" style="margin-top:12px">
+            <div class="tile"><div class="t">Gram sebulan</div><div class="v" style="color:#f0cd7e;font-size:24px">${perM < 1 ? perM.toFixed(3) : perM.toFixed(2)}g</div></div>
+            <div class="tile"><div class="t">Anggaran sebulan</div><div class="v" style="font-size:20px">${p ? rm(perM * p, 0) : '–'}</div></div>
+          </div>
+          <div style="font-size:13px;opacity:.85;margin-top:10px">${g2(perM * 12)}g setahun${p ? ` · jumlah ≈ ${rm(grams * p, 0)} pada harga hari ini` : ''}</div>
+        </div>
+        <div class="label" style="margin:16px 0 6px">Progress setiap tahun</div>
+        ${rows.map(y => { const v = Math.min(grams, perM * 12 * y); return `<div class="yr"><span>Tahun ${y}</span><span class="track"><i style="width:${v / grams * 100}%"></i></span><b>${gramsLabel(v)}</b></div>`; }).join('')}
+        <div class="hint">${have > 0 ? `Emas anda sekarang ${g2(have)}g (${Math.min(100, have / grams * 100).toFixed(1)}% dari sasaran ini). ` : ''}Anggaran RM ikut harga hari ini. Harga emas berubah, jadi fokus kumpul gram setiap bulan.</div>
+        <div class="stack" style="margin-top:14px">
+          <button type="button" class="btn gold" id="gcSet">Jadikan matlamat saya</button>
+          ${(() => {
+            const wa = (S.profile.dealerWa || DEALER.wa).replace(/\D/g, ''), intl = wa.startsWith('0') ? '6' + wa : wa;
+            const msg = `Salam, saya nak mula simpan emas untuk ${name} (${gramsLabel(grams)} dalam ${years} tahun, lebih kurang ${perM.toFixed(2)}g sebulan). Boleh bantu?`;
+            return wa ? `<a class="btn ghost" target="_blank" rel="noopener" href="https://wa.me/${intl}?text=${encodeURIComponent(msg)}">Saya nak mula · WhatsApp penasihat</a>` : '';
+          })()}
+        </div>`;
+      $('gcSet').onclick = () => {
+        const now = price();
+        S.goal = { unit: 'g', name, grams, years, priceAtSet: now || 0, targetRM: now ? grams * now : 0, setOn: today() };
+        save(); dlg.close(); render(); go('goal'); toast(`Matlamat ${name} disimpan`);
+      };
+    };
+    $('gcPresets').onclick = e => {
+      const b = e.target.closest('.preset'); if (!b) return;
+      pick = +b.dataset.i;
+      $('gcPresets').querySelectorAll('.preset').forEach(x => x.classList.toggle('on', x === b));
+      $('gcCustom').hidden = pick !== PRESETS.length - 1;
+      if (!$('gcCustom').hidden) $('gcName').focus();
+      draw();
+    };
+    $('gcYears').oninput = e => { years = +e.target.value; draw(); };
+    $('gcName').oninput = draw; $('gcGrams').oninput = draw;
+    draw();
+  }
+
   function goalDialog() {
     const G = S.goal || { name: '', targetRM: '', years: 5 };
     const p = price();
@@ -1316,7 +1406,7 @@ label.switch { display: flex; gap: 10px; align-items: center; justify-content: s
         <label class="f">Dalam tempoh (tahun)<input type="number" name="years" min="1" max="40" step="1" required inputmode="numeric" value="${G.years}"></label>
       </div>
       <div class="note" id="goalPrev"></div>`, fd => {
-      S.goal = { name: fd.name.trim(), targetRM: +fd.targetRM, years: +fd.years, priceAtSet: p, grams: +fd.targetRM / p, setOn: today() };
+      S.goal = { unit: 'rm', name: fd.name.trim(), targetRM: +fd.targetRM, years: +fd.years, priceAtSet: p, grams: +fd.targetRM / p, setOn: today() };
       save(); render(); toast('Matlamat disimpan');
     });
     const f = form.elements;
@@ -1370,9 +1460,11 @@ label.switch { display: flex; gap: 10px; align-items: center; justify-content: s
       case 'add-price': return priceDialog(true);
       case 'edit-goal': return goalDialog();
       case 'share': return shareDialog();
+      case 'goal-calc': return goalCalc();
       case 'refresh-goal': {
         const p = price(); if (!p) return priceDialog();
-        S.goal.priceAtSet = p; S.goal.grams = S.goal.targetRM / p;
+        S.goal.priceAtSet = p;
+        if (S.goal.unit === 'g') S.goal.targetRM = S.goal.grams * p; else S.goal.grams = S.goal.targetRM / p;
         save(); render(); return toast(`Sasaran dikira semula: ${g2(S.goal.grams)}g`);
       }
       case 'export': {
