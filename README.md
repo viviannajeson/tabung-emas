@@ -28,3 +28,7 @@ python3 -m http.server 8000
 ## Kemas kini
 
 `app.html` ialah sumber utama (sama dengan halaman yang diterbitkan sebagai link Claude). Selepas ubah `app.html`, jalankan `python3 build.py` untuk jana semula `index.html`.
+
+## Ikon dan thumbnail
+
+Reka bentuk ikon ada dalam `brand/icon-art.html`. Untuk jana semula gambar: `node brand/render-icons.js $PWD/brand` (perlu Playwright), kemudian ubah saiz ke `icon-192.png`, `icon-512.png`, `icon-maskable-512.png`, `apple-touch-icon.png`, `favicon.png` dan `og-image.jpg`.

@@ -1,0 +1,92 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&display=block">
+<style>
+html,body{margin:0;background:transparent}
+.icon{position:relative;width:1024px;height:1024px;overflow:hidden;
+  background:radial-gradient(circle at 50% 38%,#a52234 0%,#7a1220 38%,#4a0911 100%);font-family:Cinzel,serif}
+.icon.round{border-radius:180px}
+.icon::before{content:"";position:absolute;inset:0;background:
+  radial-gradient(circle at 50% 30%,rgba(255,214,120,.28),transparent 45%),
+  repeating-linear-gradient(135deg,rgba(255,255,255,.025) 0 3px,transparent 3px 22px)}
+.frame{position:absolute;inset:34px;border-radius:150px;border:10px solid transparent;
+  background:linear-gradient(135deg,#f8e7a1,#c9992c 40%,#fff2b8 55%,#a77a1c) border-box;
+  -webkit-mask:linear-gradient(#000 0 0) padding-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
+.frame2{position:absolute;inset:58px;border-radius:128px;border:3px solid rgba(240,210,120,.45)}
+svg{position:absolute;left:0;top:0}
+.title{position:absolute;left:0;right:0;text-align:center;font-weight:800;line-height:.98;letter-spacing:2px;
+  background:linear-gradient(180deg,#fff3c2 0%,#f1cf6a 40%,#c8962a 70%,#f6dc8a 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 6px 4px rgba(40,4,8,.6))}
+.ribbon{position:absolute;left:50%;transform:translateX(-50%);white-space:nowrap;font-weight:700;color:#4a0911;
+  background:linear-gradient(180deg,#fbe9a6,#e2bd52 45%,#c09030);border-radius:999px;box-shadow:0 8px 18px rgba(30,0,4,.5),inset 0 2px 0 rgba(255,255,255,.6)}
+.ribbon::before,.ribbon::after{content:"✦";font-size:.6em;margin:0 .5em;vertical-align:.15em}
+</style></head><body>
+<div id="wrap"></div>
+<script>
+const bars = (cx, cy, s) => {
+  // three stacked gold bars as isometric trapezoids
+  const bar = (x, y) => `
+    <g transform="translate(${x},${y}) scale(${s})">
+      <polygon points="-70,0 70,0 92,40 -92,40" fill="url(#gTop)" stroke="#8a6416" stroke-width="2"/>
+      <polygon points="-92,40 92,40 92,62 -92,62" fill="url(#gSide)" stroke="#8a6416" stroke-width="2"/>
+      <polygon points="-58,8 58,8 70,30 -70,30" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="2"/>
+    </g>`;
+  return bar(cx - 98 * s, cy) + bar(cx + 98 * s, cy) + bar(cx, cy - 62 * s);
+};
+const laurel = (cx, cy, r) => {
+  // left branch along an arc beside the title; the right branch is its mirror image
+  let leaves = '', stem = '';
+  const pts = [];
+  for (let i = 0; i <= 10; i++) {
+    const t = (222 - i * 9) * Math.PI / 180;
+    pts.push([cx + r * Math.cos(t), cy - r * Math.sin(t), t]);
+  }
+  stem = `<path d="M${pts.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' L')}" fill="none" stroke="url(#gLeaf)" stroke-width="7" stroke-linecap="round"/>`;
+  pts.forEach(([x, y, t], i) => {
+    if (i === 0) return;
+    const ang = Math.atan2(-Math.cos(t), Math.sin(t)) * 180 / Math.PI;   // tangent heading upward
+    for (const side of [-1, 1]) {
+      const rot = ang - 90 + side * 38, ox = x + side * 16 * Math.cos(t), oy = y - side * 16 * Math.sin(t);
+      leaves += `<ellipse cx="${ox.toFixed(1)}" cy="${oy.toFixed(1)}" rx="${12 - i * .3}" ry="${30 - i * .9}" transform="rotate(${rot.toFixed(1)} ${ox.toFixed(1)} ${oy.toFixed(1)})" fill="url(#gLeaf)" stroke="#8a6416" stroke-width="1.5"/>`;
+    }
+  });
+  const [tx, ty] = pts[pts.length - 1];
+  leaves += `<ellipse cx="${tx}" cy="${ty - 16}" rx="10" ry="22" fill="url(#gLeaf)" stroke="#8a6416" stroke-width="1.5"/>`;
+  const branch = stem + leaves;
+  return `<g>${branch}</g><g transform="translate(${2 * cx},0) scale(-1,1)">${branch}</g>`;
+};
+function icon(withText, round) {
+  return `<div class="icon ${round ? 'round' : ''}">
+    ${withText ? '<div class="frame"></div><div class="frame2"></div>' : ''}
+    <svg width="1024" height="1024" viewBox="0 0 1024 1024">
+      <defs>
+        <linearGradient id="gTop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff4c4"/><stop offset=".5" stop-color="#f0c95a"/><stop offset="1" stop-color="#d9a833"/></linearGradient>
+        <linearGradient id="gSide" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c8952a"/><stop offset="1" stop-color="#8a6416"/></linearGradient>
+        <linearGradient id="gLeaf" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbe7a0"/><stop offset="1" stop-color="#b9882a"/></linearGradient>
+        <radialGradient id="glow"><stop offset="0" stop-color="rgba(255,220,130,.55)"/><stop offset="1" stop-color="rgba(255,220,130,0)"/></radialGradient>
+      </defs>
+      <ellipse cx="512" cy="${withText ? 300 : 470}" rx="300" ry="150" fill="url(#glow)"/>
+      ${withText ? bars(512, 250, 1.25) : bars(512, 460, 2.1)}
+      ${withText ? laurel(512, 560, 385) : ''}
+    </svg>
+    ${withText ? `<div class="title" style="top:405px;font-size:128px">Tabung<br>Emas Saya</div>
+      <div class="ribbon" style="top:760px;font-size:50px;padding:14px 34px">Vivianna Public Gold</div>` : ''}
+  </div>`;
+}
+const mode = location.hash.slice(1);
+const w = document.getElementById('wrap');
+if (mode === 'icon') w.innerHTML = icon(true, true);
+else if (mode === 'full') w.innerHTML = icon(true, false);
+else if (mode === 'small') w.innerHTML = icon(false, false);
+else if (mode === 'og') {
+  w.innerHTML = `<div style="position:relative;width:1200px;height:630px;overflow:hidden;font-family:Cinzel,serif;
+      background:radial-gradient(circle at 30% 45%,#a52234,#6b0f1a 45%,#3d070e)">
+    <div style="position:absolute;left:70px;top:63px;width:504px;height:504px">
+      <div style="transform:scale(.4921875);transform-origin:0 0">${icon(true, true)}</div></div>
+    <div style="position:absolute;left:640px;top:150px;right:60px">
+      <div class="title" style="position:static;text-align:left;font-size:92px">Tabung<br>Emas Saya</div>
+      <div style="margin-top:26px;color:#f3dfa6;font-size:34px;font-style:italic;font-family:Georgia,serif">Simpan · Tambah · Capai Matlamat</div>
+      <div style="margin-top:34px;color:#fff8e6;font-family:Georgia,serif;font-size:28px;opacity:.9">Bimbingan Vivianna Tora Jeson</div>
+    </div></div>`;
+}
+document.fonts.ready.then(() => document.title = 'ready');
+</script></body></html>
