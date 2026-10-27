@@ -596,7 +596,8 @@ label.switch { display: flex; gap: 10px; align-items: center; justify-content: s
         <div class="ticks"><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div>
         <p style="margin:14px 0 0">${left <= 0 ? '🎉 <b>Tahniah!</b> Matlamat sudah dicapai.' :
           `Lagi <b>${g2(left)}g</b>${p ? ` (≈ ${rm(left * p, 0)} pada harga hari ini)` : ''}.` +
-          (eta ? ` Dengan bajet ${rm(S.budget.monthly, 0)} sebulan, anggaran capai pada <b>${longM(eta.key)}</b>.` : ' Set bajet bulanan untuk lihat anggaran tarikh capai.')}</p>`;
+          (eta ? ` Dengan bajet ${rm(S.budget.monthly, 0)} sebulan, anggaran capai pada <b>${longM(eta.key)}</b>.` : ' Set bajet bulanan untuk lihat anggaran tarikh capai.')}</p>
+        <button class="btn ghost" data-act="share" style="margin-top:14px">Kongsi progress sebagai gambar</button>`;
     }
 
     // this month
@@ -674,6 +675,7 @@ label.switch { display: flex; gap: 10px; align-items: center; justify-content: s
         <div class="hint">Gram dikira ikut harga semasa matlamat ditetapkan. Harga emas berubah setiap hari, jadi yang penting kumpul gram setiap bulan.</div>
         <div class="stack" style="margin-top:14px">
           <button class="btn maroon" data-act="refresh-goal">Kemas kini ikut harga hari ini${p ? ` (RM ${p})` : ''}</button>
+          <button class="btn ghost" data-act="share">Kongsi progress sebagai gambar</button>
           <button class="btn ghost" data-act="edit-goal">Tukar matlamat</button>
         </div>
       </div>`;
@@ -911,6 +913,130 @@ label.switch { display: flex; gap: 10px; align-items: center; justify-content: s
     };
   }
 
+  // ---------- share progress image ----------
+  async function drawShare(fmt, showRM) {
+    const D = 'Sora, "Segoe UI", sans-serif', B = '"Plus Jakarta Sans", system-ui, sans-serif';
+    await Promise.all(['700 80px Sora', '600 40px Sora', '500 32px "Plus Jakarta Sans"', '700 32px "Plus Jakarta Sans"']
+      .map(f => document.fonts?.load(f).catch(() => {})));
+    const W = 1080, H = fmt === 'story' ? 1920 : 1350, story = fmt === 'story';
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const x = c.getContext('2d');
+    const G = S.goal, t = totals(), p = price();
+    const pct = Math.min(100, t.grams / G.grams * 100), left = Math.max(0, G.grams - t.grams);
+    const bm = buyMonths();
+    const monthsSaved = new Set([...bm, ...Object.keys(S.monthOverride)].filter(k => savedIn(k, bm))).size;
+    const text = (str, px, y, { font = B, weight = 500, color = '#f3f7f5', align = 'center', maxW = W - 160, x0 } = {}) => {
+      let size = px;
+      do { x.font = `${weight} ${size}px ${font}`; size -= 2; } while (x.measureText(str).width > maxW && size > 20);
+      x.fillStyle = color; x.textAlign = align; x.textBaseline = 'middle';
+      x.fillText(str, x0 ?? (align === 'center' ? W / 2 : 80), y);
+    };
+
+    // ground: emerald with fine diagonal lines and an amber ring
+    x.fillStyle = '#0f4b3e'; x.fillRect(0, 0, W, H);
+    x.strokeStyle = 'rgba(255,255,255,.04)'; x.lineWidth = 4;
+    for (let i = -H; i < W; i += 30) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i + H, H); x.stroke(); }
+    x.beginPath(); x.arc(W - 40, 70, 200, 0, Math.PI * 2); x.strokeStyle = 'rgba(224,173,69,.18)'; x.lineWidth = 44; x.stroke();
+
+    // brand row
+    const top = story ? 170 : 90;
+    const g = x.createRadialGradient(92, top - 10, 4, 100, top, 34);
+    g.addColorStop(0, '#f3d48a'); g.addColorStop(.6, '#c7901f'); g.addColorStop(1, '#8f6410');
+    x.beginPath(); x.arc(100, top, 32, 0, Math.PI * 2); x.fillStyle = g; x.fill();
+    text('Tabung Emas', 44, top, { font: D, weight: 600, align: 'left', x0: 150, maxW: 500 });
+    const now = new Date();
+    text(`${ML[now.getMonth()]} ${now.getFullYear()}`, 32, top, { align: 'right', x0: W - 80, color: 'rgba(243,247,245,.7)', maxW: 360 });
+
+    // goal title
+    const y0 = top + (story ? 230 : 170);
+    text('Matlamat simpanan emas saya', 34, y0, { color: 'rgba(243,247,245,.75)' });
+    text(G.name, 92, y0 + 90, { font: D, weight: 700, color: '#f0cd7e' });
+
+    // progress ring
+    const r = story ? 250 : 165, cy = y0 + 150 + r + (story ? 40 : 0);
+    x.lineCap = 'round'; x.lineWidth = story ? 44 : 38;
+    x.beginPath(); x.arc(W / 2, cy, r, 0, Math.PI * 2); x.strokeStyle = 'rgba(255,255,255,.12)'; x.stroke();
+    if (pct > 0) { x.beginPath(); x.arc(W / 2, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(pct, 1) / 100); x.strokeStyle = '#e0ad45'; x.stroke(); }
+    text(`${pct < 10 ? pct.toFixed(1) : Math.round(pct)}%`, story ? 150 : 104, cy - 12, { font: D, weight: 700, maxW: r * 1.5 });
+    text('tercapai', story ? 36 : 32, cy + (story ? 90 : 62), { color: 'rgba(243,247,245,.75)' });
+
+    // figures
+    let yy = cy + r + (story ? 110 : 75);
+    text(`${g2(t.grams)}g daripada ${g2(G.grams)}g emas`, 48, yy, { font: D, weight: 600 });
+    if (showRM && p) { yy += story ? 62 : 55; text(`Nilai emas ≈ ${rm(t.grams * p, 0)}`, 34, yy, { color: 'rgba(243,247,245,.8)' }); }
+    yy += story ? 140 : 95;
+    const cols = [[`${monthsSaved}`, 'bulan menyimpan'], [`${streak()}`, 'bulan berturut'], [`${g2(left)}g`, 'lagi ke matlamat']];
+    cols.forEach(([v, l], i) => {
+      const cx = W / 6 * (i * 2 + 1);
+      text(v, 58, yy, { font: D, weight: 700, color: '#f0cd7e', x0: cx, maxW: 300 });
+      text(l, 28, yy + 50, { color: 'rgba(243,247,245,.75)', x0: cx, maxW: 300 });
+    });
+    if (story) { x.fillStyle = 'rgba(255,255,255,.14)'; [1, 2].forEach(i => x.fillRect(W / 3 * i - 1, yy - 40, 2, 120)); }
+
+    // adviser panel
+    const name = S.profile.dealer || DEALER.name, wa = (S.profile.dealerWa || DEALER.wa).replace(/\D/g, '');
+    const ph = story ? 200 : 180, py = H - (story ? 360 : 250), pr = Math.round(ph * .32);
+    x.fillStyle = '#ffffff'; x.beginPath(); x.roundRect ? x.roundRect(60, py, W - 120, ph, 32) : x.rect(60, py, W - 120, ph); x.fill();
+    const pcx = 60 + 44 + pr, pcy = py + ph / 2;
+    try {
+      const img = new Image(); img.src = DEALER_PHOTO; await img.decode();
+      x.save(); x.beginPath(); x.arc(pcx, pcy, pr, 0, Math.PI * 2); x.clip(); x.drawImage(img, pcx - pr, pcy - pr, pr * 2, pr * 2); x.restore();
+    } catch {}
+    x.beginPath(); x.arc(pcx, pcy, pr + 4, 0, Math.PI * 2); x.strokeStyle = '#c7901f'; x.lineWidth = 6; x.stroke();
+    const tx = pcx + pr + 36, tw = W - 120 - (tx - 60) - 40;
+    text('Bimbingan penasihat emas', 27, pcy - ph * .26, { align: 'left', x0: tx, color: '#66756f', maxW: tw });
+    text(name, 40, pcy - 2, { font: D, weight: 700, align: 'left', x0: tx, color: '#0f4b3e', maxW: tw });
+    if (wa) text(`WhatsApp ${wa}`, 30, pcy + ph * .25, { align: 'left', x0: tx, color: '#13201c', maxW: tw });
+    text(APP_URL.replace(/^https:\/\//, '').replace(/\/$/, ''), 28, py + ph + (story ? 80 : 38), { color: 'rgba(243,247,245,.7)' });
+    return c;
+  }
+
+  async function shareDialog() {
+    if (!S.goal) { toast('Tetapkan matlamat dulu'); return goalDialog(); }
+    let fmt = 'post', showRM = false, blob = null;
+    const canShare = !window.claude && !!navigator.share;
+    form.onsubmit = null;
+    form.innerHTML = `<h2>Kongsi progress</h2>
+      <div class="seg" id="shFmt"><button type="button" class="on" data-fmt="post">Post 4:5</button><button type="button" data-fmt="story">Story 9:16</button></div>
+      <label class="f switch">Tunjuk nilai RM dalam gambar<input type="checkbox" id="shRM"></label>
+      <img id="shImg" alt="Gambar progress matlamat" style="display:block;width:100%;max-height:50vh;object-fit:contain;border-radius:10px;background:var(--surface-2);min-height:200px">
+      <div class="hint">Gambar tunjuk gram dan peratus sahaja. Nilai RM hanya keluar jika anda tanda di atas.</div>
+      <div class="${canShare ? 'btns' : 'stack'}" style="margin-top:14px">
+        <button type="button" class="btn ghost" id="shSave">Simpan gambar</button>
+        ${canShare ? '<button type="button" class="btn gold" id="shShare">Kongsi</button>' : ''}
+      </div>
+      <button class="btn ghost" value="cancel" style="margin-top:10px">Tutup</button>`;
+    if (!dlg.open) dlg.showModal();
+    const draw = async () => {
+      const c = await drawShare(fmt, showRM);
+      $('shImg').src = c.toDataURL('image/png');
+      blob = await new Promise(r => c.toBlob(r, 'image/png'));
+    };
+    $('shFmt').onclick = e => {
+      const b = e.target.closest('button'); if (!b) return;
+      fmt = b.dataset.fmt; $('shFmt').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); draw();
+    };
+    $('shRM').onchange = e => { showRM = e.target.checked; draw(); };
+    const filename = () => `progress-${S.goal.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'matlamat'}-${fmt}.png`;
+    $('shSave').onclick = async () => {
+      if (!blob) return;
+      if (downloads) return downloads.save({ filename: filename(), data: blob }).then(() => toast('Gambar disimpan'), e => { if (e?.code !== 'declined') toast('Gambar tidak dapat disimpan. Tekan lama pada gambar untuk simpan.'); });
+      if (window.claude) return toast('Tekan lama pada gambar untuk simpan');
+      const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: filename() });
+      document.body.append(a); a.click(); a.remove(); toast('Gambar disimpan');
+    };
+    if (canShare) $('shShare').onclick = async () => {
+      if (!blob) return;
+      const file = new File([blob], filename(), { type: 'image/png' });
+      const data = { files: [file], text: `Progress simpanan emas saya. Jom simpan emas juga: ${APP_URL}` };
+      try {
+        if (navigator.canShare?.(data)) await navigator.share(data);
+        else $('shSave').click();
+      } catch (e) { if (e.name !== 'AbortError') $('shSave').click(); }
+    };
+    draw();
+  }
+
   function goalDialog() {
     const G = S.goal || { name: '', targetRM: '', years: 5 };
     const p = price();
@@ -965,6 +1091,7 @@ label.switch { display: flex; gap: 10px; align-items: center; justify-content: s
       case 'set-price': return priceDialog();
       case 'add-price': return priceDialog(true);
       case 'edit-goal': return goalDialog();
+      case 'share': return shareDialog();
       case 'refresh-goal': {
         const p = price(); if (!p) return priceDialog();
         S.goal.priceAtSet = p; S.goal.grams = S.goal.targetRM / p;
