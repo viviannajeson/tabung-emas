@@ -1,0 +1,952 @@
+<title>Tabung Emas</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Sora:wght@600;700&display=swap">
+<style>
+/* Layout: light app shell on a soft green-grey ground. One dark emerald "passbook" card carries the balance;
+   everything else is flat white panels with hairline borders. Sora for figures/headings, Plus Jakarta Sans for text. */
+:root {
+  --ground: #f2f4f1; --surface: #ffffff; --surface-2: #f6f8f6; --line: #dde4df;
+  --ink: #13201c; --ink-2: #3d4c47; --muted: #66756f;
+  --emerald: #0f4b3e; --emerald-2: #16634f; --emerald-soft: #e3efe9; --emerald-ink: #0f4b3e;
+  --amber: #c7901f; --amber-soft: #f7edd6; --amber-ink: #7a5410;
+  --green: #1f7a4a; --green-soft: #dcf1e4; --red: #b42d2d; --red-soft: #f8e1e0;
+  --on-dark: #f3f7f5; --dark-tile: rgba(255,255,255,.07); --dark-line: rgba(255,255,255,.16);
+  --toast-bg: #13201c; --toast-ink: #f3f7f5; --shadow: rgba(15,40,32,.08);
+  --grid: #dde4df; --gold: #c7901f; --accent-ink: #0f4b3e; --track: #e6ece8;
+  --f-display: "Sora", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --ground: #0c1412; --surface: #141f1c; --surface-2: #1a2723; --line: #263632;
+  --ink: #e6eeea; --ink-2: #c3d0cb; --muted: #8fa19a;
+  --emerald-soft: #17322a; --emerald-ink: #7fd1b0;
+  --amber: #e0ad45; --amber-soft: #33280f; --amber-ink: #f0cd7e;
+  --green: #6fcf97; --green-soft: #15301f; --red: #f0908c; --red-soft: #3a1918;
+  --toast-bg: #e6eeea; --toast-ink: #13201c; --shadow: rgba(0,0,0,.4);
+  --grid: #263632; --gold: #e0ad45; --accent-ink: #7fd1b0; --track: #22312d;
+  color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --ground: #0c1412; --surface: #141f1c; --surface-2: #1a2723; --line: #263632;
+  --ink: #e6eeea; --ink-2: #c3d0cb; --muted: #8fa19a;
+  --emerald-soft: #17322a; --emerald-ink: #7fd1b0;
+  --amber: #e0ad45; --amber-soft: #33280f; --amber-ink: #f0cd7e;
+  --green: #6fcf97; --green-soft: #15301f; --red: #f0908c; --red-soft: #3a1918;
+  --toast-bg: #e6eeea; --toast-ink: #13201c; --shadow: rgba(0,0,0,.4);
+  --grid: #263632; --gold: #e0ad45; --accent-ink: #7fd1b0; --track: #22312d;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body {
+  margin: 0; background: var(--ground); color: var(--ink);
+  font: 15px/1.5 var(--f-body);
+  padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+}
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; }
+.wrap { max-width: 560px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.tile, .card, .rec .mid, .dealer .who { min-width: 0; }
+.num, .big, .v, .kv b, .amt { font-variant-numeric: tabular-nums; }
+
+/* Header */
+header.top { background: var(--surface); border-bottom: 1px solid var(--line); padding-block: 14px; }
+header.top .wrap { display: flex; gap: 12px; align-items: center; justify-content: space-between; }
+.brand { display: flex; gap: 10px; align-items: center; min-width: 0; }
+.brand::before { content: ""; width: 34px; height: 34px; flex-shrink: 0; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #f3d48a, var(--amber) 60%, #8f6410); box-shadow: inset 0 0 0 3px rgba(255,255,255,.35); }
+.brand h1 { margin: 0; font-size: 19px; font-weight: 700; color: var(--emerald-ink); letter-spacing: -.01em; }
+.brand p { margin: 0; font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pricebox { border: 1px solid var(--line); border-radius: 12px; padding: 6px 12px; text-align: right; background: var(--surface-2); cursor: pointer; flex-shrink: 0; color: var(--ink); font: inherit; }
+.pricebox small { display: block; font-size: 11px; color: var(--muted); }
+.pricebox b { display: block; font-family: var(--f-display); font-size: 18px; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+/* Sections */
+section.page { display: none; padding-top: 20px; }
+section.page.active { display: block; }
+.title { margin: 4px 0 2px; font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
+.sub { margin: 0 0 16px; color: var(--muted); }
+.row-title { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; margin-bottom: 14px; }
+.label { font-family: var(--f-display); font-size: 14px; font-weight: 600; color: var(--ink); }
+.big { font-family: var(--f-display); font-size: 40px; font-weight: 600; line-height: 1.1; letter-spacing: -.02em; }
+.big small { font-family: var(--f-body); font-size: 15px; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+
+/* Stats: one panel split by hairlines instead of separate boxes */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.stats { display: grid; grid-template-columns: 1fr 1fr; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; margin-bottom: 14px; overflow: hidden; }
+.stats .tile { background: none; border: 0; border-radius: 0; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.stats .tile:nth-child(odd) { border-right: 1px solid var(--line); }
+.stats .tile:nth-last-child(-n+2) { border-bottom: 0; }
+.tile { background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+.tile .t { font-size: 12.5px; color: var(--muted); }
+.tile .v { font-family: var(--f-display); font-size: 19px; font-weight: 600; margin: 2px 0; overflow-wrap: anywhere; }
+.tile .s { font-size: 12px; color: var(--muted); }
+.pos { color: var(--green); }
+.neg { color: var(--red); }
+.note { border-left: 3px solid var(--amber); background: var(--amber-soft); border-radius: 0 10px 10px 0; padding: 10px 14px; font-size: 14px; color: var(--amber-ink); margin-top: 14px; }
+.hint { font-size: 12.5px; color: var(--muted); margin-top: 10px; }
+.pill { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 12.5px; font-weight: 600; background: var(--amber-soft); color: var(--amber-ink); white-space: nowrap; }
+.pill.ok { background: var(--green-soft); color: var(--green); }
+.pill.grey { background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--line); }
+
+/* Balance card (passbook) */
+.balance { background: var(--emerald); background-image: repeating-linear-gradient(135deg, rgba(255,255,255,.035) 0 2px, transparent 2px 14px); color: var(--on-dark); border: 0; position: relative; overflow: hidden; }
+.balance::after { content: ""; position: absolute; right: -40px; top: -40px; width: 150px; height: 150px; border-radius: 50%; border: 18px solid rgba(224,173,69,.18); }
+.balance .label { color: var(--on-dark); opacity: .8; font-weight: 500; }
+.balance .big { font-size: 46px; margin-top: 6px; }
+.balance .big small { color: var(--on-dark); opacity: .7; }
+.balance .note { background: var(--dark-tile); border-left-color: var(--amber); color: var(--on-dark); }
+.balance .valrow { display: flex; gap: 8px 18px; flex-wrap: wrap; margin-top: 6px; font-size: 14px; opacity: .9; }
+
+/* Meter */
+.meter { display: flex; align-items: center; gap: 12px; margin: 14px 0 6px; }
+.meter .track { flex: 1; height: 8px; background: var(--track); border-radius: 4px; overflow: hidden; }
+.meter .track i { display: block; height: 100%; background: var(--emerald-2); border-radius: 4px; }
+.meter .cap { font-family: var(--f-display); font-size: 13px; font-weight: 600; color: var(--emerald-ink); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ticks { display: none; }
+.ticks.keep { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+
+/* Saving calendar: one row per year, a dot per month */
+.cal { margin-top: 14px; display: grid; gap: 6px; }
+.cal .r { display: grid; grid-template-columns: 40px repeat(12, 1fr); gap: 5px; align-items: center; }
+.cal .r > span { font-size: 11px; color: var(--muted); text-align: center; }
+.cal .r > .yl { text-align: left; font-family: var(--f-display); font-weight: 600; color: var(--ink-2); font-size: 12px; }
+.m { aspect-ratio: 1; max-width: 100%; border-radius: 50%; border: 1.5px solid var(--line); background: var(--surface-2); padding: 0; cursor: pointer; }
+.m.yes { background: var(--emerald-2); border-color: var(--emerald-2); }
+.m.now { border: 2px dashed var(--amber); background: var(--surface); }
+.m.now.yes { background: var(--emerald-2); border: 2px solid var(--amber); }
+.m.off { visibility: hidden; cursor: default; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12.5px; color: var(--muted); margin-top: 12px; align-items: center; }
+.legend i { display: inline-block; width: 11px; height: 11px; border-radius: 50%; vertical-align: -1px; margin-right: 5px; border: 1.5px solid var(--line); background: var(--surface-2); }
+.legend i.yes { background: var(--emerald-2); border-color: var(--emerald-2); }
+.legend i.now { border: 1.5px dashed var(--amber); background: none; }
+
+/* Forms */
+label.f { display: block; font-size: 13px; color: var(--ink-2); font-weight: 500; margin-bottom: 10px; }
+input, select, textarea { width: 100%; margin-top: 4px; padding: 11px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); font: inherit; font-size: 16px; color: var(--ink); }
+input:focus, select:focus { outline: 2px solid var(--emerald-2); outline-offset: 0; border-color: transparent; }
+.btn { display: block; width: 100%; border: 1px solid transparent; border-radius: 10px; padding: 13px; font: inherit; font-weight: 600; font-size: 15.5px; cursor: pointer; text-align: center; }
+.btn.gold { background: var(--emerald); color: var(--on-dark); }
+.btn.maroon { background: var(--amber); color: #1d1404; }
+.btn.ghost { background: var(--surface); border-color: var(--line); color: var(--ink); }
+.btn.small { width: auto; display: inline-block; padding: 8px 14px; font-size: 14px; }
+.btn.danger { background: var(--surface); border-color: var(--red); color: var(--red); }
+.btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.stack > * + * { margin-top: 10px; }
+button:focus-visible, a:focus-visible, .rec:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+
+/* Goal hero */
+.hero { background: var(--emerald); background-image: repeating-linear-gradient(135deg, rgba(255,255,255,.035) 0 2px, transparent 2px 14px); color: var(--on-dark); border-radius: 12px; padding: 18px; }
+.hero .big { color: var(--on-dark); }
+.hero .label { color: var(--on-dark) !important; opacity: .8; }
+.hero .grid2 .tile { background: var(--dark-tile); border-color: var(--dark-line); color: var(--on-dark); }
+.hero .tile .t { color: var(--on-dark); opacity: .75; }
+.yr { display: grid; grid-template-columns: 62px 1fr 72px; align-items: center; gap: 10px; font-size: 14px; margin: 7px 0; }
+.yr .track { height: 6px; background: var(--track); border-radius: 3px; overflow: hidden; }
+.yr .track i { display: block; height: 100%; background: var(--amber); border-radius: 3px; }
+.yr b { text-align: right; font-family: var(--f-display); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* Tabs (underline style) */
+.seg { display: flex; gap: 22px; border-bottom: 1px solid var(--line); margin-bottom: 12px; }
+.seg button { border: 0; background: none; padding: 10px 0; font: inherit; font-weight: 600; color: var(--muted); cursor: pointer; border-bottom: 2.5px solid transparent; margin-bottom: -1px; }
+.seg button.on { color: var(--emerald-ink); border-bottom-color: var(--emerald-2); }
+
+/* Records: rows in one panel */
+#recList { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.rec { display: flex; gap: 12px; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.rec:last-child { border-bottom: 0; }
+.rec .ic { width: 40px; height: 40px; flex-shrink: 0; border-radius: 50%; display: grid; place-items: center; font-size: 10.5px; font-weight: 700; background: var(--emerald-soft); color: var(--emerald-ink); }
+.rec .ic.sell { background: var(--red-soft); color: var(--red); }
+.rec .mid { flex: 1; }
+.rec .mid b { display: block; font-weight: 600; }
+.rec .mid small { color: var(--muted); }
+.rec .amt { text-align: right; font-weight: 700; white-space: nowrap; }
+.rec .amt small { display: block; font-weight: 400; color: var(--muted); }
+
+/* Zakat */
+.zk { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0; }
+.zk div { border-radius: 10px; padding: 12px; font-size: 13px; }
+.zk .a { background: var(--surface-2); border: 1px solid var(--line); color: var(--ink-2); }
+.zk .b { background: var(--red-soft); color: var(--red); }
+.zk .b.ok { background: var(--green-soft); color: var(--green); }
+.zk b { display: block; font-family: var(--f-display); font-size: 22px; font-weight: 600; }
+
+/* Price table */
+.kv { display: flex; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14.5px; }
+.kv:last-child { border-bottom: 0; }
+.kv b { text-align: right; }
+svg.chart { width: 100%; height: auto; display: block; }
+
+/* Adviser card */
+.dealer { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+.dealer img { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--amber); }
+.dealer small { font-size: 12px; color: var(--muted); }
+.dealer h3 { margin: 0; font-size: 17px; color: var(--emerald-ink); }
+.dealer p { margin: 2px 0 0; font-size: 13.5px; color: var(--ink-2); }
+.dealer .act { grid-column: 1 / -1; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.dealer .act .btn { flex: 1; min-width: 180px; text-decoration: none; }
+.dealer .act span { font-size: 13px; color: var(--muted); user-select: all; font-variant-numeric: tabular-nums; }
+
+/* Nav */
+nav.tabs { position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface); border-top: 1px solid var(--line); display: flex; justify-content: center; padding-bottom: env(safe-area-inset-bottom, 0px); padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); z-index: 10; }
+nav.tabs .in { display: grid; grid-template-columns: repeat(5, 1fr); width: 100%; max-width: 560px; padding: 6px 6px 4px; }
+nav.tabs button { border: 0; background: none; padding: 4px 0; font: inherit; font-size: 11.5px; color: var(--muted); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+nav.tabs button svg { width: 22px; height: 22px; padding: 3px 14px; box-sizing: content-box; border-radius: 99px; }
+nav.tabs button.on { color: var(--emerald-ink); font-weight: 600; }
+nav.tabs button.on svg { background: var(--emerald-soft); }
+
+/* Modal */
+dialog { border: 0; border-radius: 16px; padding: 0; width: min(520px, calc(100% - 24px)); background: var(--surface); color: var(--ink); }
+dialog::backdrop { background: rgba(8,20,16,.55); }
+dialog .in { padding: 20px; }
+dialog h2 { margin: 0 0 14px; font-size: 20px; }
+.toast { position: fixed; left: 50%; bottom: calc(92px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--toast-bg); color: var(--toast-ink); padding: 10px 16px; border-radius: 10px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 50; max-width: calc(100% - 32px); }
+.toast.show { opacity: 1; }
+.empty { text-align: center; color: var(--muted); padding: 24px 8px; }
+.sample { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; border: 1px dashed var(--amber); background: var(--amber-soft); color: var(--amber-ink); border-radius: 12px; padding: 10px 14px; margin-bottom: 14px; font-size: 14px; }
+.syncnote { font-size: 12.5px; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+@media (max-width: 380px) { .balance .big { font-size: 38px; } .cal .r { grid-template-columns: 34px repeat(12, 1fr); gap: 3px; } }
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><div style="min-width:0">
+      <h1>Tabung Emas</h1>
+      <p id="hdrTag">Simpanan emas peribadi</p>
+    </div></div>
+    <button class="pricebox" id="hdrPrice" aria-label="Kemas kini harga hari ini">
+      <small>GAP 1g</small>
+      <b id="hdrPriceVal">RM –</b>
+      <small id="hdrPriceTime">tekan untuk set</small>
+    </button>
+  </div>
+</header>
+
+<main class="wrap">
+
+<!-- ============ UTAMA ============ -->
+<section class="page active" id="p-home">
+  <div class="sample" id="sampleBar" hidden></div>
+  <h2 class="title">Simpanan emas saya</h2>
+  <p class="sub" id="homeSub"></p>
+
+  <div class="card balance">
+    <div class="label">Emas terkumpul</div>
+    <div class="big"><span id="hGrams">0</span> <small>gram</small></div>
+    <div class="note" id="hNote" hidden></div>
+  </div>
+  <div class="stats">
+      <div class="tile"><div class="t">Nilai emas anda</div><div class="v" id="hValue">RM 0</div><div class="s">ikut harga GAP hari ini</div></div>
+      <div class="tile"><div class="t">Untung / rugi</div><div class="v" id="hPnl">RM 0</div><div class="s" id="hPnlS">berbanding jumlah dibayar</div></div>
+      <div class="tile"><div class="t">Ditambah tahun ini</div><div class="v pos" id="hYear">+0g</div><div class="s" id="hYearS"></div></div>
+      <div class="tile"><div class="t">Kali menyimpan</div><div class="v" id="hCount">0 kali</div><div class="s">setiap gram dikira</div></div>
+      <div class="tile"><div class="t">Konsisten</div><div class="v" id="hStreak">0 bulan</div><div class="s">berturut-turut menyimpan</div></div>
+      <div class="tile"><div class="t">Purata harga beli</div><div class="v" id="hAvg">RM –</div><div class="s">segram</div></div>
+  </div>
+
+  <div class="card" id="homeGoal"></div>
+
+  <div class="card">
+    <div class="row-title">
+      <div class="label" id="mTitle">Simpanan bulan ini</div>
+      <span class="pill" id="mPill">Belum simpan</span>
+    </div>
+    <p id="mText" style="margin:12px 0 14px"></p>
+    <div class="btns">
+      <button class="btn gold" data-act="add-buy">+ Rekod belian</button>
+      <button class="btn ghost" data-go="price">Semak harga</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row-title">
+      <div class="label">Rekod simpanan saya</div>
+      <span class="hint" style="margin:0">24 bulan lepas</span>
+    </div>
+    <div class="row-title" style="margin-top:10px">
+      <div><span class="big" id="cSaved" style="font-size:34px">0</span> <span style="color:var(--muted)">/ 24 bulan menyimpan</span></div>
+      <span class="pill ok" id="cGrams">+0g</span>
+    </div>
+    <div class="meter" id="cBar"></div>
+    <div class="ticks"><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div>
+    <div class="cal" id="months"></div>
+    <div class="legend">
+      <span><i class="yes"></i>Menyimpan</span>
+      <span><i></i>Tak menyimpan</span>
+      <span><i class="now"></i>Bulan ini</span>
+    </div>
+    <div class="note">Setiap gram dikira. Cuba simpan sedikit setiap bulan, walaupun cuma 1 gram.</div>
+    <div class="hint">Bulan yang ada rekod belian ditanda sendiri. Tekan mana-mana bulan untuk ubah.</div>
+  </div>
+
+  <div id="dealerCard"></div>
+</section>
+
+<!-- ============ MATLAMAT ============ -->
+<section class="page" id="p-goal">
+  <h2 class="title">Matlamat simpanan</h2>
+  <p class="sub">Simpan emas untuk apa? Kami kira berapa gram perlu setiap bulan.</p>
+  <div id="goalView"></div>
+
+  <h2 class="title" style="margin-top:24px">Bajet simpanan bulanan</h2>
+  <p class="sub">Berapa yang anda mampu simpan setiap bulan?</p>
+  <div class="card">
+    <div class="grid2">
+      <label class="f">Bajet sebulan (RM)<input type="number" inputmode="decimal" min="0" step="10" id="budget"></label>
+      <label class="f">Mula menyimpan<input type="month" id="startMonth"></label>
+    </div>
+    <div class="grid2" id="budgetTiles"></div>
+    <div class="note" id="budgetNote" hidden></div>
+  </div>
+</section>
+
+<!-- ============ REKOD ============ -->
+<section class="page" id="p-rec">
+  <div class="row-title">
+    <div>
+      <h2 class="title">Rekod belian</h2>
+      <p class="sub" id="rSub" style="margin:0">0 rekod simpanan</p>
+    </div>
+    <button class="btn gold small" data-act="add-buy">+ Tambah</button>
+  </div>
+  <div class="grid2" style="margin:14px 0 16px">
+    <div class="tile"><div class="t">Jumlah disimpan</div><div class="v" id="rSpent">RM 0</div><div class="s" id="rSpentS"></div></div>
+    <div class="tile"><div class="t">Emas disimpan</div><div class="v" id="rGrams">0g</div><div class="s">jumlah gram anda</div></div>
+  </div>
+
+  <div class="card" id="zakat"></div>
+
+  <div class="seg" id="recSeg">
+    <button class="on" data-f="all">Semua</button>
+    <button data-f="buy">Beli</button>
+    <button data-f="sell">Jual / tebus</button>
+  </div>
+  <div id="recList"></div>
+</section>
+
+<!-- ============ HARGA ============ -->
+<section class="page" id="p-price">
+  <h2 class="title">Harga emas GAP</h2>
+  <p class="sub">Sejarah harga 1 gram yang anda rekodkan.</p>
+
+  <div class="card">
+    <div class="row-title"><div class="label">Harga GAP hari ini</div><span class="hint" style="margin:0" id="pTime"></span></div>
+    <div class="big" style="margin-top:8px"><span id="pToday">RM –</span> <small>/gram</small></div>
+    <p style="margin:6px 0 14px;color:var(--muted)" id="pPer100"></p>
+    <button class="btn maroon" data-act="set-price">Kemas kini harga hari ini</button>
+    <div class="hint">Semak harga terkini di app / laman Public Gold, kemudian masukkan di sini. Setiap kemas kini disimpan dalam sejarah harga.</div>
+  </div>
+
+  <div class="card">
+    <div class="label">Semak harga pada tarikh</div>
+    <label class="f" style="margin-top:10px">Pilih tarikh<input type="date" id="checkDate"></label>
+    <div id="checkOut"></div>
+  </div>
+
+  <div class="card">
+    <div class="row-title"><div class="label">Graf harga</div><span class="hint" style="margin:0" id="chartRange"></span></div>
+    <div id="chart" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card">
+    <div class="row-title"><div class="label">Sejarah harga</div><button class="btn ghost small" data-act="add-price">+ Harga lama</button></div>
+    <div id="priceList" style="margin-top:8px"></div>
+  </div>
+</section>
+
+<!-- ============ PROFIL ============ -->
+<section class="page" id="p-prof">
+  <h2 class="title">Profil & tetapan</h2>
+  <p class="sub">Data anda peribadi. Orang lain yang buka link ini tidak nampak rekod anda.</p>
+  <div class="card">
+    <label class="f">Nama anda<input id="sName" placeholder="cth. Aisyah"></label>
+    <label class="f">Nisab zakat emas (gram)<input type="number" inputmode="decimal" step="0.01" id="sNisab"></label>
+    <div class="hint" style="margin-top:-4px">Lalai 85g. Semak nisab dan uruf ikut pusat zakat negeri anda.</div>
+  </div>
+  <div class="card">
+    <div class="label" style="margin-bottom:10px">Kad penasihat / dealer (pilihan)</div>
+    <label class="f">Nama penasihat<input id="sDealer" placeholder="Vivianna Tora Jeson"></label>
+    <label class="f">Mesej ringkas<input id="sDealerMsg" placeholder="Hubungi saya untuk bimbingan menyimpan emas secara percuma."></label>
+    <label class="f">No. WhatsApp<input id="sDealerWa" inputmode="tel" placeholder="0167141771"></label>
+  </div>
+  <div class="card stack">
+    <div class="label">Backup data</div>
+    <div class="syncnote" id="syncNote">Data disimpan dalam browser ini.</div>
+    <button class="btn ghost" data-act="export" id="exportBtn">Muat turun backup (.json)</button>
+    <button class="btn ghost" data-act="import">Pulihkan dari backup</button>
+    <input type="file" id="importFile" accept="application/json,.json" hidden>
+    <button class="btn danger" data-act="reset">Padam semua data</button>
+    <div class="hint">Tip: buat backup sekali-sekala. Jika anda padam data browser, rekod akan hilang.</div>
+  </div>
+</section>
+</main>
+
+<nav class="tabs">
+  <div class="in">
+    <button class="on" data-go="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Utama</button>
+    <button data-go="goal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>Matlamat</button>
+    <button data-go="rec"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 20h14l-2-11H7z"/><path d="M9 9V6a3 3 0 0 1 6 0v3"/></svg>Rekod</button>
+    <button data-go="price"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m3 17 6-6 4 4 8-8"/><path d="M3 21h18"/></svg>Harga</button>
+    <button data-go="prof"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Profil</button>
+  </div>
+</nav>
+
+<dialog id="dlg"><form method="dialog" class="in" id="dlgForm"></form></dialog>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const KEY = 'myGoldSaving.v1';
+  const DEALER_PHOTO = 'data:image/jpeg;base64,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';
+  const DEALER = { name: 'Vivianna Tora Jeson', msg: 'Hubungi saya untuk bimbingan menyimpan emas secara percuma.', wa: '0167141771' };
+  const MS = ['Jan','Feb','Mac','Apr','Mei','Jun','Jul','Ogo','Sep','Okt','Nov','Dis'];
+  const ML = ['Januari','Februari','Mac','April','Mei','Jun','Julai','Ogos','September','Oktober','November','Disember'];
+
+  const defaults = () => ({
+    profile: { name: '', nisab: 85, dealer: '', dealerMsg: '', dealerWa: '' },
+    budget: { monthly: 0, start: '' },
+    goal: null,          // { name, targetRM, grams, priceAtSet, years, setOn }
+    records: [],         // { id, type:'buy'|'sell', date, grams, amount, price, note }
+    prices: [],          // { date:'YYYY-MM-DD', price, time }
+    monthOverride: {}    // { 'YYYY-MM': true|false }
+  });
+
+  // Example data, flagged so the page labels it and offers to clear it.
+  function sampleData() {
+    const d = defaults(), ck = (() => { const t = new Date(); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}`; })();
+    const back = n => { let [y, m] = ck.split('-').map(Number); m -= n; while (m < 1) { m += 12; y--; } return `${y}-${String(m).padStart(2, '0')}`; };
+    const buys = [[9, 480, 500], [8, 495, 500], [6, 510, 500], [5, 528, 1000], [3, 560, 500], [1, 600, 600]];
+    d.records = buys.map(([n, p, amt], i) => ({ id: i + 1, type: 'buy', date: back(n) + '-12', grams: +(amt / p).toFixed(4), amount: amt, note: '' }));
+    d.prices = buys.map(([n, p]) => ({ date: back(n) + '-12', price: p, time: '' })).concat([{ date: back(0) + '-01', price: 572, time: '' }]);
+    d.goal = { name: 'Umrah', targetRM: 30000, years: 4, priceAtSet: 480, grams: 30000 / 480, setOn: back(9) + '-12' };
+    d.budget = { monthly: 500, start: back(9) };
+    d.sample = true;
+    return d;
+  }
+
+  let S;
+  try { S = Object.assign(defaults(), JSON.parse(localStorage.getItem(KEY) || '{}')); }
+  catch { S = defaults(); }
+  // Each person's data is a private doc in the artifact's store (data/users/<id>/state);
+  // localStorage is a local copy so the page works signed out and before the store answers.
+  let dbRef = null, writing = false, pending = false;
+  async function flush() {
+    if (!dbRef) return;
+    if (writing) { pending = true; return; }
+    writing = true;
+    try { await dbRef.set(JSON.parse(JSON.stringify(S))); setSync('Disimpan dalam akaun Claude anda'); }
+    catch (e) {
+      // Visitors with view-only access can't write to the store: keep their data in this browser instead.
+      if (e?.code === 'invalid_argument' || e?.code === 'not_granted') { dbRef = null; setSync(LOCAL_NOTE); }
+      else setSync(e?.code === 'quota_exceeded' ? 'Storan penuh. Padam rekod lama.' : 'Belum dapat simpan ke akaun. Data masih ada dalam browser ini.');
+    }
+    writing = false;
+    if (pending) { pending = false; flush(); }
+  }
+  let flushT;
+  const save = () => {
+    try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {}
+    clearTimeout(flushT); flushT = setTimeout(flush, 600);
+  };
+  const LOCAL_NOTE = 'Data disimpan dalam telefon/browser ini. Buat backup sekali-sekala.';
+  const setSync = msg => { const el = document.getElementById('syncNote'); if (el) el.textContent = msg; };
+
+  // ---------- helpers ----------
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const rm = (n, d = 2) => 'RM ' + Number(n || 0).toLocaleString('en-MY', { minimumFractionDigits: d, maximumFractionDigits: d });
+  const g4 = n => Number(n || 0).toFixed(4);
+  const g2 = n => Number(n || 0).toFixed(2);
+  const pad = n => String(n).padStart(2, '0');
+  const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+  const mkey = d => d.slice(0, 7);
+  const curKey = () => mkey(today());
+  const addMonths = (key, n) => { let [y, m] = key.split('-').map(Number); m += n; y += Math.floor((m - 1) / 12); m = ((m - 1) % 12 + 12) % 12 + 1; return `${y}-${pad(m)}`; };
+  const monthsBetween = (a, b) => { const [y1, m1] = a.split('-').map(Number), [y2, m2] = b.split('-').map(Number); return (y2 - y1) * 12 + (m2 - m1); };
+  const shortM = key => { const [y, m] = key.split('-'); return `${MS[m-1]} ${y.slice(2)}`; };
+  const longM = key => { const [y, m] = key.split('-'); return `${ML[m-1]} ${y}`; };
+  const fmtDate = d => { const [y, m, dd] = d.split('-'); return `${+dd} ${MS[m-1]} ${y}`; };
+  const dur = n => { const y = Math.floor(n / 12), m = n % 12; return [y && `${y} thn`, m && `${m} bln`].filter(Boolean).join(' ') || '0 bln'; };
+  const toast = msg => { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2200); };
+
+  // ---------- derived ----------
+  const sortedPrices = () => [...S.prices].sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''));
+  const latestPrice = () => { const p = sortedPrices(); return p.length ? p[p.length - 1] : null; };
+  const price = () => latestPrice()?.price || 0;
+  const priceOn = date => { let hit = null; for (const p of sortedPrices()) { if (p.date <= date) hit = p; else break; } return hit; };
+
+  const totals = () => {
+    let grams = 0, spent = 0, received = 0, buyGrams = 0, buys = 0;
+    for (const r of S.records) {
+      if (r.type === 'buy') { grams += r.grams; spent += r.amount; buyGrams += r.grams; buys++; }
+      else { grams -= r.grams; received += r.amount; }
+    }
+    return { grams, spent, received, buyGrams, buys, avg: buyGrams ? spent / buyGrams : 0 };
+  };
+  const buyMonths = () => new Set(S.records.filter(r => r.type === 'buy').map(r => mkey(r.date)));
+  const savedIn = (key, bm = buyMonths()) => key in S.monthOverride ? S.monthOverride[key] : bm.has(key);
+  const streak = () => {
+    const bm = buyMonths(); let k = curKey(), n = 0;
+    if (!savedIn(k, bm)) k = addMonths(k, -1);
+    while (savedIn(k, bm) && n < 600) { n++; k = addMonths(k, -1); }
+    return n;
+  };
+
+  // ---------- render ----------
+  function renderHeader() {
+    const lp = latestPrice();
+    $('hdrPriceVal').textContent = lp ? 'RM ' + lp.price.toLocaleString('en-MY') : 'RM –';
+    $('hdrPriceTime').textContent = lp ? (lp.date === today() ? 'Hari ini' + (lp.time ? ' · ' + lp.time : '') : fmtDate(lp.date)) : 'tekan untuk set';
+    $('hdrTag').textContent = 'Bimbingan ' + (S.profile.dealer || DEALER.name);
+  }
+
+  function renderSample() {
+    const bar = $('sampleBar');
+    if (S.sample) {
+      bar.hidden = false;
+      bar.innerHTML = `<span><b>Data contoh.</b> Bukan rekod sebenar anda.</span><button class="btn ghost small" data-act="clear-sample">Padam & mula sendiri</button>`;
+    } else if (!S.records.length && !S.prices.length) {
+      bar.hidden = false;
+      bar.innerHTML = `<span>Mula dengan set harga GAP hari ini, atau lihat dulu dengan data contoh.</span><button class="btn ghost small" data-act="load-sample">Lihat data contoh</button>`;
+    } else bar.hidden = true;
+  }
+
+  function renderHome() {
+    renderSample();
+    const t = totals(), p = price(), ck = curKey();
+    // Empty profile fields fall back to the built-in dealer, so every visitor sees the card.
+    const name = S.profile.dealer || DEALER.name, msg = S.profile.dealerMsg || DEALER.msg, wa = (S.profile.dealerWa || DEALER.wa).replace(/\D/g, '');
+    const waIntl = wa.startsWith('0') ? '6' + wa : wa;
+    $('dealerCard').innerHTML = `<div class="dealer"><img src="${DEALER_PHOTO}" alt="${esc(name)}"><div class="who"><small>Penasihat emas anda</small><h3>${esc(name)}</h3><p>${esc(msg)}</p></div>${wa ? `<div class="act"><a class="btn gold" target="_blank" rel="noopener" href="https://wa.me/${esc(waIntl)}">WhatsApp saya</a><span>${esc(wa)}</span></div>` : ''}</div>`;
+    const lp = latestPrice();
+    $('homeSub').textContent = `${fmtDate(today())}${lp ? ` · harga GAP RM ${lp.price}/g` : ' · harga hari ini belum diset'}`;
+    $('hGrams').textContent = g4(t.grams);
+    $('hValue').textContent = p ? rm(t.grams * p) : 'RM –';
+    const pnl = p ? t.grams * p - (t.spent - t.received) : 0;
+    $('hPnl').textContent = p && t.buys ? (pnl >= 0 ? '+' : '−') + rm(Math.abs(pnl)) : 'RM –';
+    $('hPnl').className = 'v ' + (pnl >= 0 ? 'pos' : 'neg');
+    $('hPnlS').textContent = t.spent ? `${pnl >= 0 ? '+' : ''}${(pnl / (t.spent - t.received || 1) * 100).toFixed(1)}% atas jumlah dibayar` : 'berbanding jumlah dibayar';
+    const y = String(new Date().getFullYear());
+    const yg = S.records.filter(r => r.date.startsWith(y)).reduce((s, r) => s + (r.type === 'buy' ? r.grams : -r.grams), 0);
+    $('hYear').textContent = (yg >= 0 ? '+' : '') + g2(yg) + 'g';
+    $('hYear').className = 'v ' + (yg >= 0 ? 'pos' : 'neg');
+    $('hYearS').textContent = 'sejak Jan ' + y;
+    $('hCount').textContent = t.buys + ' kali';
+    const st = streak();
+    $('hStreak').textContent = st + ' bulan';
+    $('hAvg').textContent = t.avg ? 'RM ' + t.avg.toFixed(2) : 'RM –';
+
+    const sp = sortedPrices();
+    if (sp.length >= 2 && p) {
+      const f = sp[0], ch = (p - f.price) / f.price * 100;
+      $('hNote').hidden = false;
+      $('hNote').innerHTML = `Harga emas GAP ${ch >= 0 ? 'naik' : 'turun'} <b>${Math.abs(ch).toFixed(1)}%</b> sejak ${fmtDate(f.date)} (RM ${f.price} → RM ${p} segram). Emas yang disimpan hari ini ialah aset untuk masa depan.`;
+    } else $('hNote').hidden = true;
+
+    // goal
+    const G = S.goal;
+    if (!G) {
+      $('homeGoal').innerHTML = `<div class="label">Matlamat</div><p>Belum ada matlamat. Simpan emas untuk apa? Umrah, rumah, pendidikan anak, percutian…</p><button class="btn maroon" data-go="goal">Tetapkan matlamat</button>`;
+    } else {
+      const pct = Math.min(100, t.grams / G.grams * 100), left = Math.max(0, G.grams - t.grams);
+      const eta = etaInfo(left);
+      $('homeGoal').innerHTML = `
+        <div class="row-title"><div class="label">Matlamat: ${esc(G.name)}</div><span class="hint" style="margin:0">${g2(t.grams)}g / ${g2(G.grams)}g</span></div>
+        <div class="hint">Sasaran ${rm(G.targetRM, 0)} = ${g2(G.grams)}g (harga RM ${G.priceAtSet}/g semasa matlamat ditetapkan)</div>
+        ${barHTML(pct, pct.toFixed(1) + '%')}
+        <div class="ticks"><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div>
+        <p style="margin:14px 0 0">${left <= 0 ? '🎉 <b>Tahniah!</b> Matlamat sudah dicapai.' :
+          `Lagi <b>${g2(left)}g</b>${p ? ` (≈ ${rm(left * p, 0)} pada harga hari ini)` : ''}.` +
+          (eta ? ` Dengan bajet ${rm(S.budget.monthly, 0)} sebulan, anggaran capai pada <b>${longM(eta.key)}</b>.` : ' Set bajet bulanan untuk lihat anggaran tarikh capai.')}</p>`;
+    }
+
+    // this month
+    const bm = buyMonths(), saved = savedIn(ck, bm);
+    const mg = S.records.filter(r => mkey(r.date) === ck && r.type === 'buy').reduce((s, r) => s + r.grams, 0);
+    $('mTitle').textContent = 'Simpanan ' + ML[+ck.slice(5) - 1];
+    $('mPill').textContent = saved ? 'Sudah simpan ✓' : 'Belum simpan';
+    $('mPill').className = 'pill' + (saved ? ' ok' : '');
+    $('mText').innerHTML = saved && mg ? `Bulan ini anda sudah simpan <b>${g4(mg)}g</b>. Syabas!` :
+      S.budget.monthly && p ? `Bajet bulan ini ${rm(S.budget.monthly, 0)} ≈ <b>${g4(S.budget.monthly / p)}g</b> pada harga hari ini.` :
+      'Set bajet bulanan di tab Matlamat untuk lihat berapa gram bulan ini.';
+
+    // 24 months
+    const keys = Array.from({ length: 24 }, (_, i) => addMonths(ck, i - 23));
+    const n = keys.filter(k => savedIn(k, bm)).length;
+    const g24 = S.records.filter(r => keys.includes(mkey(r.date))).reduce((s, r) => s + (r.type === 'buy' ? r.grams : -r.grams), 0);
+    $('cSaved').textContent = n;
+    $('cGrams').textContent = (g24 >= 0 ? '+' : '') + g2(g24) + 'g';
+    $('cBar').outerHTML = barHTML(n / 24 * 100, n + ' bulan', 'cBar');
+    const years = [...new Set(keys.map(k => k.slice(0, 4)))];
+    $('months').innerHTML = `<div class="r"><span></span>${['J','F','M','A','M','J','J','O','S','O','N','D'].map(c => `<span>${c}</span>`).join('')}</div>` +
+      years.map(y => `<div class="r"><span class="yl">${y}</span>${Array.from({ length: 12 }, (_, i) => {
+        const k = `${y}-${pad(i + 1)}`;
+        if (!keys.includes(k)) return '<span class="m off"></span>';
+        const sv = savedIn(k, bm), now = k === ck;
+        return `<button class="m${sv ? ' yes' : ''}${now ? ' now' : ''}" data-month="${k}" title="${longM(k)}" aria-label="${longM(k)}: ${sv ? 'menyimpan' : 'tak menyimpan'}"></button>`;
+      }).join('')}</div>`).join('');
+  }
+
+  function barHTML(pct, tag, id = '') {
+    const c = Math.max(0, Math.min(100, pct));
+    return `<div class="meter"${id ? ` id="${id}"` : ''}><span class="track"><i style="width:${c}%"></i></span><span class="cap">${tag}</span></div>`;
+  }
+
+  function etaInfo(leftGrams) {
+    const p = price(), b = S.budget.monthly;
+    if (!p || !b || leftGrams <= 0) return null;
+    const perM = b / p, months = Math.ceil(leftGrams / perM);
+    const bm = buyMonths(), ck = curKey();
+    // if this month is already saved, the next contribution is next month
+    const startOffset = savedIn(ck, bm) ? 1 : 0;
+    return { months, perM, key: addMonths(ck, months - 1 + startOffset) };
+  }
+
+  function renderGoal() {
+    const G = S.goal, t = totals(), p = price();
+    if (!G) {
+      $('goalView').innerHTML = `<div class="card"><p style="margin-top:0">Anda belum ada matlamat.</p><button class="btn maroon" data-act="edit-goal">Tetapkan matlamat</button></div>`;
+    } else {
+      const months = G.years * 12, perM = G.grams / months, pct = Math.min(100, t.grams / G.grams * 100);
+      const yrs = Array.from({ length: Math.min(G.years, 30) }, (_, i) => {
+        const v = Math.min(G.grams, perM * 12 * (i + 1));
+        return `<div class="yr"><span>Tahun ${i + 1}</span><span class="track"><i style="width:${v / G.grams * 100}%"></i></span><b>${g2(v)}g</b></div>`;
+      }).join('');
+      $('goalView').innerHTML = `<div class="card">
+        <div class="hero">
+          <div class="label" style="color:rgba(255,255,255,.8)">Matlamat: ${esc(G.name)}</div>
+          <div class="big">${g2(G.grams)}g</div>
+          <div style="opacity:.85;font-size:13px;margin-bottom:12px">Sasaran ${rm(G.targetRM, 0)} · dalam ${G.years} tahun · harga RM ${G.priceAtSet}/g</div>
+          <div class="grid2">
+            <div class="tile"><div class="t">Simpan sebulan</div><div class="v">${(perM).toFixed(3)}g</div></div>
+            <div class="tile"><div class="t">Simpan setahun</div><div class="v">${g2(perM * 12)}g</div></div>
+          </div>
+          <div style="font-size:13px;margin-top:12px;opacity:.9">Emas anda sekarang ${g2(t.grams)}g = ${pct.toFixed(1)}% dari sasaran ini</div>
+        </div>
+        <div class="label" style="margin:18px 0 8px">Progress setiap tahun</div>
+        ${yrs}
+        <div class="hint">Gram dikira ikut harga semasa matlamat ditetapkan. Harga emas berubah setiap hari, jadi yang penting kumpul gram setiap bulan.</div>
+        <div class="stack" style="margin-top:14px">
+          <button class="btn maroon" data-act="refresh-goal">Kemas kini ikut harga hari ini${p ? ` (RM ${p})` : ''}</button>
+          <button class="btn ghost" data-act="edit-goal">Tukar matlamat</button>
+        </div>
+      </div>`;
+    }
+
+    // budget
+    if (document.activeElement !== $('budget')) $('budget').value = S.budget.monthly || '';
+    $('startMonth').value = S.budget.start || '';
+    const b = S.budget.monthly;
+    const left = G ? Math.max(0, G.grams - t.grams) : 0;
+    const eta = etaInfo(left);
+    const tiles = [
+      ['Gram sebulan', b && p ? g4(b / p) + 'g' : '–', p ? `ikut harga RM ${p}` : 'set harga hari ini'],
+      ['Baki ke matlamat', G ? g2(left) + 'g' : '–', G ? (t.grams / G.grams * 100).toFixed(1) + '% tercapai' : 'tiada matlamat'],
+      ['Tempoh perlu', eta ? dur(eta.months) : '–', 'dari bulan ini'],
+      ['Anggaran capai', eta ? longM(eta.key) : '–', 'jika simpan setiap bulan']
+    ];
+    $('budgetTiles').innerHTML = tiles.map(([a, v, s]) => `<div class="tile"><div class="t">${a}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join('');
+    if (G && left > 0) {
+      const deadline = addMonths(mkey(G.setOn), G.years * 12);
+      const mLeft = Math.max(1, monthsBetween(curKey(), deadline));
+      const need = left / mLeft;
+      $('budgetNote').hidden = false;
+      $('budgetNote').innerHTML = `Untuk capai dalam tempoh ${G.years} tahun (sebelum ${longM(deadline)}), anda perlu simpan ≈ <b>${g4(need)}g</b> sebulan${p ? ` (≈ ${rm(need * p, 0)} pada harga hari ini)` : ''}.`;
+    } else $('budgetNote').hidden = true;
+  }
+
+  let recFilter = 'all';
+  function renderRec() {
+    const t = totals(), p = price();
+    $('rSub').textContent = `${S.records.length} rekod simpanan`;
+    $('rSpent').textContent = rm(t.spent);
+    $('rSpentS').textContent = `${t.buys} kali menyimpan` + (t.received ? ` · jual ${rm(t.received, 0)}` : '');
+    $('rGrams').textContent = g4(t.grams) + 'g';
+
+    const nisab = +S.profile.nisab || 85, ok = t.grams >= nisab;
+    const pct = Math.min(100, t.grams / nisab * 100);
+    const now = new Date();
+    $('zakat').innerHTML = `
+      <div class="row-title"><div class="label">Zakat emas</div><span class="pill ${ok ? 'ok' : 'grey'}">${ok ? 'Cukup nisab' : 'Belum cukup nisab'}</span></div>
+      <p style="margin:12px 0 0;font-weight:500">Status zakat emas simpanan anda (${ML[now.getMonth()]} ${now.getFullYear()}):</p>
+      <div class="zk"><div class="a">Emas terkumpul<b>${g2(t.grams)}g</b></div>
+      <div class="b ${ok ? 'ok' : ''}">${ok ? 'Anggaran zakat (2.5%)' : 'Baki ke nisab'}<b>${ok ? (p ? rm(t.grams * p * 0.025) : g4(t.grams * 0.025) + 'g') : g2(nisab - t.grams) + 'g'}</b></div></div>
+      ${barHTML(pct, Math.floor(pct) + '%')}
+      <div class="ticks keep"><span>0g</span><span>${nisab}g (Nisab)</span></div>
+      <div class="hint">Anggaran sahaja${p ? `, ikut harga GAP hari ini RM ${p}/g` : ''}. Zakat wajib bila cukup nisab dan cukup haul (setahun). Nisab dan cara kiraan ikut pusat zakat negeri masing-masing.</div>`;
+
+    const list = [...S.records].filter(r => recFilter === 'all' || r.type === recFilter)
+      .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
+    $('recList').innerHTML = list.length ? list.map(r => {
+      const pp = priceOn(r.date);
+      return `<div class="rec" data-rec="${r.id}">
+        <div class="ic ${r.type}">${r.type === 'buy' ? 'GAP' : 'JUAL'}</div>
+        <div class="mid"><b>${r.type === 'buy' ? 'Beli' : 'Jual / tebus'} · ${g4(r.grams)}g</b>
+          <small>${fmtDate(r.date)} · RM ${(r.amount / r.grams).toFixed(2)}/g${r.note ? ' · ' + esc(r.note) : ''}</small></div>
+        <div class="amt">${rm(r.amount)}<small>${r.type === 'buy' ? 'dibayar' : 'diterima'}</small></div></div>`;
+    }).join('') : `<div class="empty">Belum ada rekod.<br>Tekan <b>+ Tambah</b> setiap kali anda beli emas.</div>`;
+  }
+
+  let checkTouched = false;
+  function renderPrice() {
+    const lp = latestPrice(), p = price();
+    $('pToday').textContent = lp ? 'RM ' + lp.price.toLocaleString('en-MY') : 'RM –';
+    $('pTime').textContent = lp ? (lp.date === today() ? 'Hari ini' : fmtDate(lp.date)) + (lp.time ? ' · ' + lp.time : '') : '';
+    $('pPer100').textContent = p ? `RM100 = ${g4(100 / p)}g` : 'Harga belum diset.';
+
+    const sp = sortedPrices();
+    if (!checkTouched && sp.length) $('checkDate').value = sp[0].date;
+    $('checkDate').max = today();
+    const d = $('checkDate').value;
+    if (!d) $('checkOut').innerHTML = '<div class="hint">Rekod harga dulu untuk guna fungsi ini.</div>';
+    else {
+      const hp = priceOn(d);
+      if (!hp) $('checkOut').innerHTML = `<div class="hint">Tiada rekod harga pada atau sebelum ${fmtDate(d)}. Rekod harga paling awal: ${sp.length ? fmtDate(sp[0].date) : '–'}. Tambah harga lama di bawah.</div>`;
+      else {
+        const ch = p ? (p - hp.price) / hp.price * 100 : 0;
+        $('checkOut').innerHTML = `
+          <div class="row-title" style="margin-top:6px"><span class="hint" style="margin:0">${fmtDate(hp.date)}${hp.date !== d ? ' (rekod terdekat)' : ''}</span>
+          ${p ? `<span class="pill ${ch >= 0 ? 'ok' : ''}" style="${ch < 0 ? 'background:var(--red-soft);color:var(--red)' : ''}">${ch >= 0 ? '▲' : '▼'} ${Math.abs(ch).toFixed(1)}% hingga hari ini</span>` : ''}</div>
+          <div class="big">RM ${hp.price}</div>
+          <div class="kv"><span>Harga 1g pada hari itu</span><b>RM ${hp.price}</b></div>
+          <div class="kv"><span>RM100 dapat</span><b>${g4(100 / hp.price)}g</b></div>
+          ${p ? `<div class="kv"><span>Harga hari ini</span><b>RM ${p}</b></div>
+          <div class="kv"><span>Beza</span><b class="${p >= hp.price ? 'pos' : 'neg'}">${p >= hp.price ? '+' : '−'}RM ${Math.abs(p - hp.price).toFixed(2)}/g</b></div>
+          <div class="kv"><span>Jika simpan RM1,000 pada hari itu</span><b>${rm(1000 / hp.price * p, 0)} hari ini</b></div>` : ''}`;
+      }
+    }
+
+    $('chart').innerHTML = chartSVG(sp);
+    $('chartRange').textContent = sp.length ? `${fmtDate(sp[0].date)} – ${fmtDate(sp[sp.length - 1].date)}` : '';
+    $('priceList').innerHTML = sp.length ? [...sp].reverse().map((x, i) => `
+      <div class="kv"><span>${fmtDate(x.date)}${x.time ? ' · ' + x.time : ''}</span><b>RM ${x.price} <button class="btn ghost small" style="padding:3px 9px;margin-left:6px" data-delprice="${S.prices.indexOf(x)}" aria-label="Padam">✕</button></b></div>`).join('')
+      : '<div class="empty">Belum ada rekod harga.</div>';
+  }
+
+  function chartSVG(sp) {
+    // keep the last price per day so the line stays readable
+    const byDay = new Map(); sp.forEach(p => byDay.set(p.date, p.price));
+    const pts = [...byDay].map(([date, price]) => ({ t: new Date(date).getTime(), price, date }));
+    if (pts.length < 2) return '<div class="empty">Perlu sekurang-kurangnya 2 tarikh harga untuk graf.</div>';
+    const W = 340, H = 180, L = 40, R = 10, T = 12, B = 24;
+    const t0 = pts[0].t, t1 = pts[pts.length - 1].t;
+    let lo = Math.min(...pts.map(p => p.price)), hi = Math.max(...pts.map(p => p.price));
+    const padV = (hi - lo) * 0.1 || hi * 0.05; lo -= padV; hi += padV;
+    const x = t => L + (t - t0) / (t1 - t0) * (W - L - R);
+    const y = v => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
+    const line = pts.map((p, i) => `${i ? 'L' : 'M'}${x(p.t).toFixed(1)},${y(p.price).toFixed(1)}`).join('');
+    const area = `${line}L${x(t1).toFixed(1)},${H - B}L${L},${H - B}Z`;
+    const grid = [0, .5, 1].map(f => { const v = lo + (hi - lo) * f; return `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" style="stroke:var(--grid)" stroke-dasharray="3 3"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end" font-size="10" style="fill:var(--muted)">${Math.round(v)}</text>`; }).join('');
+    const buys = S.records.filter(r => r.type === 'buy' && byDay.has(r.date))
+      .map(r => `<circle cx="${x(new Date(r.date).getTime())}" cy="${y(byDay.get(r.date))}" r="3.5" style="fill:var(--accent-ink)"/>`).join('');
+    const last = pts[pts.length - 1];
+    return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Graf harga emas">
+      <defs><linearGradient id="ga" x1="0" x2="0" y1="0" y2="1"><stop offset="0" style="stop-color:var(--gold)" stop-opacity=".35"/><stop offset="1" style="stop-color:var(--gold)" stop-opacity="0"/></linearGradient></defs>
+      ${grid}<path d="${area}" fill="url(#ga)"/><path d="${line}" fill="none" style="stroke:var(--gold)" stroke-width="2.2" stroke-linejoin="round"/>
+      ${buys}<circle cx="${x(last.t)}" cy="${y(last.price)}" r="4.5" style="fill:var(--gold);stroke:var(--surface)" stroke-width="2"/>
+      <text x="${L}" y="${H - 6}" font-size="10" style="fill:var(--muted)">${shortM(pts[0].date)}</text>
+      <text x="${W - R}" y="${H - 6}" font-size="10" style="fill:var(--muted)" text-anchor="end">${shortM(last.date)}</text>
+    </svg><div class="legend"><span><b style="color:var(--gold)">━</b> Harga GAP 1g</span><span><b style="color:var(--accent-ink)">●</b> Tarikh anda beli</span></div>`;
+  }
+
+  function renderProf() {
+    const p = S.profile;
+    for (const [id, k] of [['sName', 'name'], ['sNisab', 'nisab'], ['sDealer', 'dealer'], ['sDealerMsg', 'dealerMsg'], ['sDealerWa', 'dealerWa']])
+      if (document.activeElement !== $(id)) $(id).value = p[k] ?? '';
+  }
+
+  function render() { renderHeader(); renderHome(); renderGoal(); renderRec(); renderPrice(); renderProf(); }
+
+  // ---------- dialogs ----------
+  const dlg = $('dlg'), form = $('dlgForm');
+  function openDialog(html, onSubmit) {
+    form.innerHTML = html + `<div class="btns" style="margin-top:14px"><button class="btn ghost" value="cancel" formnovalidate>Batal</button><button class="btn gold" value="ok">Simpan</button></div>`;
+    form.onsubmit = e => {
+      if (e.submitter?.value !== 'ok') return;
+      const fd = Object.fromEntries(new FormData(form));
+      if (onSubmit(fd) === false) e.preventDefault();
+    };
+    dlg.showModal();
+  }
+
+  function ask(msg, okLabel, then) {
+    form.innerHTML = `<p style="margin:0 0 6px;font-size:16px">${esc(msg)}</p><div class="btns" style="margin-top:14px"><button class="btn ghost" value="cancel">Batal</button><button class="btn danger" value="ok">${esc(okLabel)}</button></div>`;
+    form.onsubmit = e => { if (e.submitter?.value === 'ok') then(); };
+    if (!dlg.open) dlg.showModal();
+  }
+
+  function addPricePoint(date, value) {
+    const d = new Date();
+    const time = date === today() ? `${pad(d.getHours())}:${pad(d.getMinutes())}` : '';
+    S.prices.push({ date, price: +value, time });
+  }
+
+  function priceDialog(past = false) {
+    openDialog(`<h2>${past ? 'Tambah harga lama' : 'Harga GAP hari ini'}</h2>
+      ${past ? `<label class="f">Tarikh<input type="date" name="date" required max="${today()}"></label>` : ''}
+      <label class="f">Harga 1 gram (RM)<input type="number" name="price" step="0.01" min="1" required inputmode="decimal" value="${past ? '' : price() || ''}"></label>
+      <div class="hint">Rujuk harga GAP terkini di app atau laman rasmi Public Gold.</div>`, fd => {
+      addPricePoint(past ? fd.date : today(), fd.price); save(); render(); toast('Harga disimpan');
+    });
+  }
+
+  function recordDialog(rec) {
+    const r = rec || { type: 'buy', date: today(), amount: '', grams: '', note: '' };
+    const pr = rec ? (rec.amount / rec.grams).toFixed(2) : (priceOn(r.date)?.price || '');
+    openDialog(`<h2>${rec ? 'Ubah rekod' : 'Rekod belian'}</h2>
+      <div class="seg" id="typeSeg" style="grid-template-columns:1fr 1fr">
+        <button type="button" data-t="buy" class="${r.type === 'buy' ? 'on' : ''}">Beli</button>
+        <button type="button" data-t="sell" class="${r.type === 'sell' ? 'on' : ''}">Jual / tebus</button>
+      </div>
+      <input type="hidden" name="type" value="${r.type}">
+      <label class="f">Tarikh<input type="date" name="date" required max="${today()}" value="${r.date}"></label>
+      <div class="grid2">
+        <label class="f">Jumlah (RM)<input type="number" name="amount" step="0.01" min="0.01" required inputmode="decimal" value="${r.amount}"></label>
+        <label class="f">Harga GAP/g (RM)<input type="number" name="price" step="0.01" min="1" inputmode="decimal" value="${pr}"></label>
+      </div>
+      <label class="f">Gram diperoleh<input type="number" name="grams" step="0.0001" min="0.0001" required inputmode="decimal" value="${r.grams}"></label>
+      <div class="hint" style="margin-top:-4px">Gram dikira automatik dari jumlah ÷ harga. Boleh ubah ikut resit sebenar.</div>
+      <label class="f" style="margin-top:10px">Nota (pilihan)<input name="note" maxlength="60" value="${esc(r.note || '')}"></label>
+      ${rec ? `<button type="button" class="btn danger" id="delRec">Padam rekod ini</button>` : ''}`, fd => {
+      const grams = +fd.grams, amount = +fd.amount;
+      if (!(grams > 0 && amount > 0)) { toast('Masukkan jumlah dan gram'); return false; }
+      if (fd.type === 'sell' && !rec && grams > totals().grams + 1e-9) { toast('Gram jual melebihi simpanan'); return false; }
+      const obj = { id: rec?.id || Date.now(), type: fd.type, date: fd.date, grams, amount, note: fd.note.trim() };
+      if (rec) S.records[S.records.findIndex(x => x.id === rec.id)] = obj; else S.records.push(obj);
+      // remember that day's GAP price for the price history
+      if (+fd.price > 0 && !S.prices.some(p => p.date === fd.date && p.price === +fd.price)) addPricePoint(fd.date, fd.price);
+      save(); render(); toast(rec ? 'Rekod dikemas kini' : 'Rekod disimpan');
+    });
+    const f = form.elements;
+    const calc = () => { if (+f.amount.value > 0 && +f.price.value > 0) f.grams.value = (f.amount.value / f.price.value).toFixed(4); };
+    f.amount.oninput = calc; f.price.oninput = calc;
+    f.date.onchange = () => { const hp = priceOn(f.date.value); if (hp && !f.price.value) { f.price.value = hp.price; calc(); } };
+    $('typeSeg').onclick = e => {
+      const b = e.target.closest('button'); if (!b) return;
+      f.type.value = b.dataset.t;
+      $('typeSeg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+    };
+    if (rec) $('delRec').onclick = () => {
+      ask('Padam rekod ini?', 'Padam', () => { S.records = S.records.filter(x => x.id !== rec.id); save(); render(); toast('Rekod dipadam'); });
+    };
+  }
+
+  function goalDialog() {
+    const G = S.goal || { name: '', targetRM: '', years: 5 };
+    const p = price();
+    if (!p) { toast('Set harga GAP hari ini dulu'); priceDialog(); return; }
+    openDialog(`<h2>Matlamat simpanan</h2>
+      <label class="f">Simpan untuk apa?<input name="name" required maxlength="40" placeholder="cth. Umrah, Rumah, Bercuti" value="${esc(G.name)}"></label>
+      <div class="grid2">
+        <label class="f">Sasaran (RM)<input type="number" name="targetRM" min="1" step="1" required inputmode="decimal" value="${G.targetRM}"></label>
+        <label class="f">Dalam tempoh (tahun)<input type="number" name="years" min="1" max="40" step="1" required inputmode="numeric" value="${G.years}"></label>
+      </div>
+      <div class="note" id="goalPrev"></div>`, fd => {
+      S.goal = { name: fd.name.trim(), targetRM: +fd.targetRM, years: +fd.years, priceAtSet: p, grams: +fd.targetRM / p, setOn: today() };
+      save(); render(); toast('Matlamat disimpan');
+    });
+    const f = form.elements;
+    const prev = () => {
+      const g = +f.targetRM.value / p, m = +f.years.value * 12;
+      $('goalPrev').innerHTML = g && m ? `Sasaran ≈ <b>${g2(g)}g</b> pada harga RM ${p}/g. Perlu simpan <b>${(g / m).toFixed(3)}g</b> sebulan (≈ ${rm(g / m * p, 0)}).` : 'Masukkan sasaran dan tempoh.';
+    };
+    f.targetRM.oninput = prev; f.years.oninput = prev; prev();
+  }
+
+  // ---------- events ----------
+  const go = name => {
+    document.querySelectorAll('section.page').forEach(s => s.classList.toggle('active', s.id === 'p-' + name));
+    document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('on', b.dataset.go === name));
+    window.scrollTo(0, 0);
+    try { sessionStorage.setItem(KEY + '.tab', name); } catch {}
+  };
+
+  document.addEventListener('click', e => {
+    const el = e.target.closest('[data-go],[data-act],[data-month],[data-rec],[data-delprice],[data-f]');
+    if (!el) return;
+    if (el.dataset.go) return go(el.dataset.go);
+    if (el.dataset.f) {
+      recFilter = el.dataset.f;
+      $('recSeg').querySelectorAll('button').forEach(b => b.classList.toggle('on', b === el));
+      return renderRec();
+    }
+    if (el.dataset.month) {
+      const k = el.dataset.month, bm = buyMonths(), next = !savedIn(k, bm);
+      if (next === bm.has(k)) delete S.monthOverride[k]; else S.monthOverride[k] = next;
+      save(); renderHome(); toast(`${longM(k)}: ${next ? 'menyimpan' : 'tak menyimpan'}`);
+      return;
+    }
+    if (el.dataset.rec) return recordDialog(S.records.find(r => String(r.id) === el.dataset.rec));
+    if (el.dataset.delprice !== undefined) {
+      return ask('Padam harga ini dari sejarah?', 'Padam', () => { S.prices.splice(+el.dataset.delprice, 1); save(); render(); });
+    }
+    switch (el.dataset.act) {
+      case 'add-buy': return recordDialog();
+      case 'set-price': return priceDialog();
+      case 'add-price': return priceDialog(true);
+      case 'edit-goal': return goalDialog();
+      case 'refresh-goal': {
+        const p = price(); if (!p) return priceDialog();
+        S.goal.priceAtSet = p; S.goal.grams = S.goal.targetRM / p;
+        save(); render(); return toast(`Sasaran dikira semula: ${g2(S.goal.grams)}g`);
+      }
+      case 'export': {
+        if (!downloads) {
+          // Outside Claude (e.g. the standalone web app) a plain browser download works.
+          if (window.claude) return toast('Muat turun tidak tersedia di sini');
+          const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([JSON.stringify(S, null, 2)], { type: 'application/json' })), download: `tabung-emas-backup-${today()}.json` });
+          document.body.append(a); a.click(); a.remove(); return;
+        }
+        downloads.save({ filename: `tabung-emas-backup-${today()}.json`, data: JSON.stringify(S, null, 2) })
+          .then(() => toast('Backup disimpan'), e => { if (e?.code !== 'declined') toast('Backup tidak dapat disimpan'); });
+        return;
+      }
+      case 'import': return $('importFile').click();
+      case 'reset':
+        return ask('Padam SEMUA rekod, matlamat dan harga? Tindakan ini tidak boleh diundur.', 'Padam semua', () => { S = defaults(); save(); render(); toast('Semua data dipadam'); });
+      case 'load-sample': S = sampleData(); save(); render(); return toast('Data contoh dimuatkan');
+      case 'clear-sample': S = defaults(); save(); render(); return priceDialog();
+    }
+  });
+  $('hdrPrice').onclick = () => priceDialog();
+
+  $('importFile').onchange = async e => {
+    const file = e.target.files[0]; if (!file) return;
+    try {
+      const data = JSON.parse(await file.text());
+      if (!Array.isArray(data.records)) throw 0;
+      S = Object.assign(defaults(), data); save(); render(); toast('Backup dipulihkan');
+    } catch { toast('Fail backup tidak sah'); }
+    e.target.value = '';
+  };
+
+  $('budget').oninput = e => { S.budget.monthly = +e.target.value || 0; save(); renderGoal(); renderHome(); };
+  $('startMonth').onchange = e => { S.budget.start = e.target.value; save(); };
+  $('checkDate').onchange = () => { checkTouched = true; renderPrice(); };
+  for (const [id, k] of [['sName', 'name'], ['sNisab', 'nisab'], ['sDealer', 'dealer'], ['sDealerMsg', 'dealerMsg'], ['sDealerWa', 'dealerWa']])
+    $(id).oninput = e => { S.profile[k] = k === 'nisab' ? (+e.target.value || 85) : e.target.value; save(); renderHeader(); renderHome(); renderRec(); };
+
+  render();
+  try { const t = sessionStorage.getItem(KEY + '.tab'); if (t) go(t); } catch {}
+  let downloads = null;
+  (async () => {
+    const claude = window.claude;
+    if (!claude?.use) return;
+    claude.use('downloads').then(d => { downloads = d; $('exportBtn').hidden = !d; });
+    const [db, user] = await Promise.all([claude.use('db'), claude.use('user')]);
+    const uid = db && user ? await user.id() : null;
+    if (!uid) { setSync(LOCAL_NOTE); return; }
+    dbRef = db.doc('data/users/' + uid + '/state');
+    try {
+      const snap = await dbRef.get();
+      if (snap.exists) {
+        S = Object.assign(defaults(), JSON.parse(JSON.stringify(snap.data())));
+        try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {}
+        render(); setSync('Disimpan dalam akaun Claude anda');
+      } else if (S.records.length || S.prices.length || S.goal) flush();
+      else setSync('Disimpan dalam akaun Claude anda');
+    } catch { dbRef = null; setSync('Data disimpan dalam browser ini sahaja.'); }
+  })();
+})();
+</script>
