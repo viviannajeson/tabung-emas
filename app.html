@@ -442,7 +442,7 @@ pre.code { background: var(--surface-2); border: 1px solid var(--line); border-r
   </div>
   <div class="card" id="dealerPriceCard" hidden>
     <div class="label">Harga untuk pelanggan</div>
-    <p class="hint" style="margin:4px 0 12px">App pelanggan di <b>viviannajeson.github.io/tabung-emas</b> ambil harga dari fail <code>price.json</code> dalam repo GitHub anda. Masukkan harga hari ini, salin teks, kemudian tampal dalam editor GitHub dan tekan <b>Commit changes</b>.</p>
+    <p class="hint" style="margin:4px 0 12px">Harga untuk pelanggan dikemas kini <b>automatik dari publicgold.com.my setiap 30 minit</b> (8 pagi hingga 12 malam). Guna kad ini hanya jika perlu ubah harga sendiri: masukkan harga, salin teks, tampal dalam editor GitHub, kemudian tekan <b>Commit changes</b>.</p>
     <div class="grid2">
       <label class="f">Harga GAP 1g (RM)<input type="number" inputmode="decimal" step="0.01" min="1" id="dpPrice"></label>
       <label class="f">Masa<input type="time" id="dpTime"></label>
@@ -611,7 +611,7 @@ pre.code { background: var(--surface-2); border: 1px solid var(--line); border-r
   function renderHeader() {
     const lp = latestPrice();
     $('hdrPriceVal').textContent = lp ? 'RM ' + lp.price.toLocaleString('en-MY') : 'RM –';
-    $('hdrPriceTime').textContent = lp ? (lp.src === 'penasihat' ? 'Penasihat · ' : '') + (lp.date === today() ? (lp.time || 'Hari ini') : fmtDate(lp.date)) : 'tekan untuk set';
+    $('hdrPriceTime').textContent = lp ? (lp.src === 'publicgold' ? 'Public Gold · ' : lp.src === 'penasihat' ? 'Penasihat · ' : '') + (lp.date === today() ? (lp.time || 'Hari ini') : fmtDate(lp.date)) : 'tekan untuk set';
     $('hdrTag').textContent = 'Bimbingan ' + (S.profile.dealer || DEALER.name);
   }
 
@@ -1233,16 +1233,28 @@ pre.code { background: var(--surface-2); border: 1px solid var(--line); border-r
       .then(markBackup, e => { if (e?.code !== 'declined') toast('Backup tidak dapat disimpan'); });
   }
 
-  // ---------- price published by the adviser (price.json next to the standalone app) ----------
+  // ---------- price published in the tabung-emas repo (updated from publicgold.com.my) ----------
+  // raw.githubusercontent.com serves the latest commit within minutes, without waiting for a Pages deploy;
+  // price.json next to the app is the fallback.
+  const PRICE_SOURCES = ['https://raw.githubusercontent.com/viviannajeson/tabung-emas/main/price.json', 'price.json'];
+  async function fetchPriceFile() {
+    for (const u of PRICE_SOURCES) {
+      try {
+        const r = await fetch(u + '?t=' + Date.now(), { cache: 'no-store' });
+        if (r.ok) return await r.json();
+      } catch {}
+    }
+    return null;
+  }
   async function syncDealerPrice() {
     if (window.claude) return;
     try {
-      const r = await fetch('price.json?t=' + Date.now(), { cache: 'no-store' });
-      if (!r.ok) return;
-      const j = await r.json(), pr = +j.price, d = String(j.date || '');
+      const j = await fetchPriceFile();
+      if (!j) return;
+      const pr = +j.price, d = String(j.date || '');
       if (!(pr > 0) || !/^\d{4}-\d{2}-\d{2}$/.test(d) || d > today()) return;
       if (S.prices.some(p => p.date === d && p.price === pr)) return;
-      S.prices.push({ date: d, price: pr, time: /^\d{2}:\d{2}$/.test(j.time) ? j.time : '', src: 'penasihat' });
+      S.prices.push({ date: d, price: pr, time: /^\d{2}:\d{2}$/.test(j.time) ? j.time : '', src: /publicgold/.test(j.source || '') ? 'publicgold' : 'penasihat' });
       save(); render();
     } catch {}
   }

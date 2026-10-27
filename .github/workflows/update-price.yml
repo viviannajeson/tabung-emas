@@ -1,0 +1,33 @@
+name: Kemas kini harga GAP
+
+on:
+  schedule:
+    # Every 30 minutes, 8am to midnight Malaysia time (UTC+8). GitHub may start a run a few minutes late.
+    - cron: "7,37 0-15 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-price
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read GAP price from publicgold.com.my
+        run: python3 scripts/update_price.py
+
+      - name: Commit price.json if it changed
+        run: |
+          if git diff --quiet -- price.json; then echo "Harga tidak berubah."; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          msg=$(python3 -c "import json; p=json.load(open('price.json')); print(f\"Harga GAP {p['date']} {p['time']}: RM {p['price']}\")")
+          git commit -m "$msg" -- price.json
+          git push

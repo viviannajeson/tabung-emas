@@ -32,3 +32,9 @@ python3 -m http.server 8000
 ## Ikon dan thumbnail
 
 Reka bentuk ikon ada dalam `brand/icon-art.html`. Untuk jana semula gambar: `node brand/render-icons.js $PWD/brand` (perlu Playwright), kemudian ubah saiz ke `icon-192.png`, `icon-512.png`, `icon-maskable-512.png`, `apple-touch-icon.png`, `favicon.png` dan `og-image.jpg`.
+
+## Harga automatik
+
+`.github/workflows/update-price.yml` menjalankan `scripts/update_price.py` setiap 30 minit (8 pagi hingga 12 malam waktu Malaysia). Skrip membaca harga GAP 1 gram dari publicgold.com.my dan mengemas kini `price.json` jika harga berubah. App membaca `price.json` dari raw.githubusercontent.com (cepat) atau dari GitHub Pages.
+
+Untuk jalankan segera: tab **Actions** → **Kemas kini harga GAP** → **Run workflow**.
