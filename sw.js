@@ -1,5 +1,5 @@
 // Offline cache: app shell first from cache, refreshed in the background.
-const CACHE = 'tabung-emas-v5';
+const CACHE = 'tabung-emas-v6';
 const SHELL = ['./', 'index.html', 'manifest.json', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {

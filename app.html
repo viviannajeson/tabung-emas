@@ -210,6 +210,10 @@ a.btn { text-decoration: none; }
 .remind span { font-size: 13.5px; }
 label.switch { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
 .switch input { width: 22px; height: 22px; margin: 0; accent-color: var(--emerald-2); }
+.haul { padding: 14px 0; border-bottom: 1px solid var(--line); }
+.haul:last-child { border-bottom: 0; padding-bottom: 0; }
+.haul .row-title b { font-family: var(--f-display); font-size: 14.5px; }
+.kv small { font-weight: 400; color: var(--muted); }
 .syncnote { font-size: 12.5px; color: var(--muted); }
 @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
 @media (max-width: 380px) { .balance .big { font-size: 38px; } .cal .r { grid-template-columns: 34px repeat(12, 1fr); gap: 3px; } }
@@ -332,6 +336,38 @@ label.switch { display: flex; gap: 10px; align-items: center; justify-content: s
   <div id="recList"></div>
 </section>
 
+<!-- ============ ZAKAT ============ -->
+<section class="page" id="p-zakat">
+  <button class="btn ghost small" data-go="rec">← Kembali ke Rekod</button>
+  <h2 class="title" style="margin-top:14px">Kalkulator zakat emas</h2>
+  <p class="sub">Zakat emas simpanan ialah 2.5% bila emas cukup nisab dan disimpan cukup haul, iaitu setahun Hijrah (354 hari).</p>
+
+  <div class="card">
+    <div class="label">Tetapan kiraan</div>
+    <div class="grid2" style="margin-top:12px">
+      <label class="f">Nisab (gram)<input type="number" inputmode="decimal" step="0.01" min="1" id="zNisab"></label>
+      <label class="f">Kaedah kiraan<select id="zMethod"><option value="end">Baki akhir haul</option><option value="min">Baki terendah dalam haul</option></select></label>
+    </div>
+    <div class="hint" style="margin-top:0">Kebanyakan negeri guna nisab 85g. Pusat zakat negeri berbeza dalam kaedah kiraan, jadi pilih yang sama dengan negeri anda.</div>
+  </div>
+
+  <div class="card" id="zHaul"></div>
+
+  <div class="card">
+    <div class="label">Kira sendiri</div>
+    <p class="hint" style="margin:4px 0 12px">Nisab dikira atas semua emas simpanan anda. Masukkan juga emas di akaun GAP lain atau jongkong/dinar fizikal.</p>
+    <div class="grid2">
+      <label class="f">Emas dalam app (g)<input id="zApp" readonly tabindex="-1"></label>
+      <label class="f">Emas simpanan lain (g)<input type="number" inputmode="decimal" min="0" step="0.0001" id="zOther" placeholder="0"></label>
+      <label class="f">Harga emas (RM/g)<input type="number" inputmode="decimal" min="0" step="0.01" id="zPrice"></label>
+      <label class="f">Sudah cukup haul?<select id="zHaulOk"><option value="1">Ya, cukup setahun</option><option value="0">Belum</option></select></label>
+    </div>
+    <div id="zOut"></div>
+  </div>
+
+  <div class="note" style="margin-bottom:16px">Kalkulator ini anggaran sahaja. Tarikh Hijrah dikira secara anggaran dan mungkin berbeza 1 hingga 2 hari daripada takwim rasmi. Emas perhiasan yang dipakai ada kiraan uruf tersendiri dan tidak dikira di sini. Rujuk pusat zakat negeri anda sebelum membayar.</div>
+</section>
+
 <!-- ============ HARGA ============ -->
 <section class="page" id="p-price">
   <h2 class="title">Harga emas GAP</h2>
@@ -433,7 +469,8 @@ label.switch { display: flex; gap: 10px; align-items: center; justify-content: s
     records: [],         // { id, type:'buy'|'sell', date, grams, amount, price, note }
     prices: [],          // { date:'YYYY-MM-DD', price, time }
     monthOverride: {},   // { 'YYYY-MM': true|false }
-    reminder: { on: false, day: 25, time: '20:00' }
+    reminder: { on: false, day: 25, time: '20:00' },
+    zakat: { method: 'end', other: 0, paid: {} }   // paid: { haulEndDate: { date, amount } }
   });
 
   // Example data, flagged so the page labels it and offers to clear it.
@@ -697,17 +734,30 @@ label.switch { display: flex; gap: 10px; align-items: center; justify-content: s
     $('rSpentS').textContent = `${t.buys} kali menyimpan` + (t.received ? ` · jual ${rm(t.received, 0)}` : '');
     $('rGrams').textContent = g4(t.grams) + 'g';
 
-    const nisab = +S.profile.nisab || 85, ok = t.grams >= nisab;
-    const pct = Math.min(100, t.grams / nisab * 100);
-    const now = new Date();
+    const nisab = nisabG(), ok = t.grams >= nisab, Z = zakatHauls(), cur = Z.current;
+    const due = Z.hauls.filter(h => h.status === 'due' && !S.zakat.paid[h.end]);
+    const pill = due.length ? ['', 'Zakat perlu dibayar'] : cur ? ['ok', 'Haul sedang berjalan'] : ok ? ['ok', 'Cukup nisab'] : ['grey', 'Belum cukup nisab'];
+    let body;
+    if (due.length) {
+      const h = due[due.length - 1], z = haulZakat(h);
+      body = `<div class="remind" style="margin:12px 0 0"><div><b>Haul cukup pada ${fmtDate(h.end)}</b><span>Zakat ≈ ${z.rm ? rm(z.rm) : g4(z.grams) + 'g emas'} (2.5% daripada ${g2(h.grams)}g)</span></div></div>`;
+    } else if (cur) {
+      const left = daysBetween(today(), cur.end), done = HAUL_DAYS - left;
+      body = `<p style="margin:12px 0 0">Haul bermula <b>${fmtDate(cur.start)}</b>. Cukup haul pada <b>${fmtDate(cur.end)}</b>${hijri(cur.end) ? ` (${hijri(cur.end)})` : ''}.</p>
+        ${barHTML(done / HAUL_DAYS * 100, `${left} hari lagi`)}`;
+    } else {
+      body = `<p style="margin:12px 0 0;font-weight:500">Status zakat emas simpanan anda:</p>
+        ${barHTML(Math.min(100, t.grams / nisab * 100), Math.floor(Math.min(100, t.grams / nisab * 100)) + '%')}
+        <div class="ticks keep"><span>0g</span><span>${nisab}g (Nisab)</span></div>`;
+    }
     $('zakat').innerHTML = `
-      <div class="row-title"><div class="label">Zakat emas</div><span class="pill ${ok ? 'ok' : 'grey'}">${ok ? 'Cukup nisab' : 'Belum cukup nisab'}</span></div>
-      <p style="margin:12px 0 0;font-weight:500">Status zakat emas simpanan anda (${ML[now.getMonth()]} ${now.getFullYear()}):</p>
+      <div class="row-title"><div class="label">Zakat emas</div><span class="pill ${pill[0]}">${pill[1]}</span></div>
+      ${body}
       <div class="zk"><div class="a">Emas terkumpul<b>${g2(t.grams)}g</b></div>
-      <div class="b ${ok ? 'ok' : ''}">${ok ? 'Anggaran zakat (2.5%)' : 'Baki ke nisab'}<b>${ok ? (p ? rm(t.grams * p * 0.025) : g4(t.grams * 0.025) + 'g') : g2(nisab - t.grams) + 'g'}</b></div></div>
-      ${barHTML(pct, Math.floor(pct) + '%')}
-      <div class="ticks keep"><span>0g</span><span>${nisab}g (Nisab)</span></div>
-      <div class="hint">Anggaran sahaja${p ? `, ikut harga GAP hari ini RM ${p}/g` : ''}. Zakat wajib bila cukup nisab dan cukup haul (setahun). Nisab dan cara kiraan ikut pusat zakat negeri masing-masing.</div>`;
+      ${due.length ? `<div class="b ok">Haul seterusnya<b>${cur ? daysBetween(today(), cur.end) + ' hari' : '–'}</b></div>`
+        : `<div class="b ${ok ? 'ok' : ''}">${ok ? (cur ? 'Anggaran zakat bila cukup haul' : 'Anggaran zakat (2.5%)') : 'Baki ke nisab'}<b>${ok ? (p ? rm(t.grams * p * 0.025) : g4(t.grams * 0.025) + 'g') : g2(nisab - t.grams) + 'g'}</b></div>`}</div>
+      <button class="btn gold" data-go="zakat">Kalkulator zakat & haul</button>
+      <div class="hint">Anggaran sahaja. Zakat wajib bila cukup nisab dan cukup haul (setahun Hijrah). Nisab dan cara kiraan ikut pusat zakat negeri masing-masing.</div>`;
 
     const list = [...S.records].filter(r => recFilter === 'all' || r.type === recFilter)
       .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
@@ -809,6 +859,97 @@ label.switch { display: flex; gap: 10px; align-items: center; justify-content: s
       'END:VEVENT', 'END:VCALENDAR', ''].join('\r\n');
   }
 
+  // ---------- zakat ----------
+  const HAUL_DAYS = 354;   // one Hijri year
+  const nisabG = () => +S.profile.nisab || 85;
+  const addDays = (ds, n) => { const d = new Date(ds + 'T12:00'); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
+  const daysBetween = (a, b) => Math.round((new Date(b + 'T12:00') - new Date(a + 'T12:00')) / 864e5);
+  const hijri = ds => {
+    try { return new Intl.DateTimeFormat('ms-MY-u-ca-islamic-umalqura', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(ds + 'T12:00')); }
+    catch { return ''; }
+  };
+
+  // Walk the records in date order. A haul starts when the balance reaches nisab, restarts if it
+  // drops below, and each completed haul is zakatable on its end balance (or its lowest balance).
+  function zakatHauls() {
+    const nisab = nisabG(), useMin = S.zakat.method === 'min', end = today();
+    const days = new Map();
+    for (const r of S.records) days.set(r.date, (days.get(r.date) || 0) + (r.type === 'buy' ? r.grams : -r.grams));
+    const dates = [...days.keys()].sort();
+    const hauls = [];
+    let bal = 0, start = null, low = Infinity;
+    const closeUntil = limit => {
+      while (start && addDays(start, HAUL_DAYS) <= limit) {
+        const e = addDays(start, HAUL_DAYS);
+        hauls.push({ start, end: e, status: 'due', grams: useMin ? Math.min(low, bal) : bal });
+        start = e; low = bal;
+      }
+    };
+    for (const d of dates) {
+      closeUntil(d);
+      bal += days.get(d);
+      if (start) {
+        if (bal < nisab - 1e-9) { hauls.push({ start, end: d, status: 'reset', grams: bal }); start = null; low = Infinity; }
+        else low = Math.min(low, bal);
+      } else if (bal >= nisab - 1e-9) { start = d; low = bal; }
+    }
+    closeUntil(end);
+    const current = start ? { start, end: addDays(start, HAUL_DAYS), status: 'running', grams: useMin ? Math.min(low, bal) : bal } : null;
+    return { hauls, current, bal };
+  }
+  const haulZakat = h => {
+    const grams = h.grams * 0.025, pr = priceOn(h.end)?.price || price();
+    return { grams, rm: pr ? grams * pr : 0, price: pr };
+  };
+
+  function renderZakat() {
+    const t = totals(), p = price(), nisab = nisabG(), Z = zakatHauls();
+    if (document.activeElement !== $('zNisab')) $('zNisab').value = nisab;
+    $('zMethod').value = S.zakat.method;
+    $('zApp').value = g4(t.grams);
+    if (document.activeElement !== $('zOther')) $('zOther').value = S.zakat.other || '';
+    if (!$('zPrice').value && p) $('zPrice').value = p;
+
+    const rows = [];
+    if (Z.current) {
+      const c = Z.current, left = daysBetween(today(), c.end), z = haulZakat(c);
+      rows.push(`<div class="haul">
+        <div class="row-title"><b>Haul semasa</b><span class="pill ok">${left} hari lagi</span></div>
+        <div class="kv"><span>Mula (cukup nisab)</span><b>${fmtDate(c.start)}</b></div>
+        <div class="kv"><span>Cukup haul</span><b>${fmtDate(c.end)}${hijri(c.end) ? `<br><small>${hijri(c.end)}</small>` : ''}</b></div>
+        ${barHTML((HAUL_DAYS - left) / HAUL_DAYS * 100, Math.round((HAUL_DAYS - left) / HAUL_DAYS * 100) + '%')}
+        <div class="hint" style="margin-top:4px">Jika baki ${S.zakat.method === 'min' ? 'terendah kekal' : 'kekal'} ${g2(c.grams)}g, zakat ≈ ${g4(z.grams)}g emas${z.rm ? ` atau ${rm(z.rm)}` : ''}.</div>
+      </div>`);
+    }
+    for (const h of [...Z.hauls].reverse()) {
+      if (h.status === 'reset') {
+        rows.push(`<div class="haul"><div class="row-title"><b>${fmtDate(h.start)} – ${fmtDate(h.end)}</b><span class="pill grey">Haul terputus</span></div>
+          <div class="hint" style="margin-top:4px">Simpanan jatuh bawah nisab (${g2(h.grams)}g) pada ${fmtDate(h.end)}, jadi haul bermula semula bila cukup nisab lagi.</div></div>`);
+        continue;
+      }
+      const z = haulZakat(h), paid = S.zakat.paid[h.end];
+      rows.push(`<div class="haul">
+        <div class="row-title"><b>${fmtDate(h.start)} – ${fmtDate(h.end)}</b><span class="pill ${paid ? 'ok' : ''}">${paid ? 'Sudah bayar' : 'Wajib zakat'}</span></div>
+        <div class="kv"><span>Emas dikira (${S.zakat.method === 'min' ? 'baki terendah' : 'baki akhir'})</span><b>${g4(h.grams)}g</b></div>
+        <div class="kv"><span>Zakat 2.5%</span><b>${g4(z.grams)}g${z.rm ? `<br><small>≈ ${rm(z.rm)} (RM ${z.price}/g)</small>` : ''}</b></div>
+        ${paid ? `<div class="hint" style="margin-top:4px">Dibayar ${rm(paid.amount)} pada ${fmtDate(paid.date)}. <a href="#" data-zunpaid="${h.end}" style="color:var(--muted)">Batal tanda</a></div>`
+               : `<button class="btn gold" data-zpaid="${h.end}" style="margin-top:8px">Tanda sudah bayar</button>`}
+      </div>`);
+    }
+    $('zHaul').innerHTML = `<div class="label">Haul dari rekod anda</div>` + (rows.length ? rows.join('') :
+      `<p class="hint" style="margin:6px 0 0">Simpanan anda belum pernah mencapai nisab ${nisab}g. Haul bermula pada hari jumlah emas mencapai nisab.</p>
+       ${barHTML(Math.min(100, t.grams / nisab * 100), `${g2(t.grams)}g / ${nisab}g`)}`);
+
+    // manual calculator
+    const total = t.grams + (+S.zakat.other || 0), pr = +$('zPrice').value || 0, haulOk = $('zHaulOk').value === '1';
+    const zg = total * 0.025;
+    let out;
+    if (total < nisab) out = `<div class="zk" style="margin-bottom:0"><div class="a">Jumlah emas<b>${g2(total)}g</b></div><div class="b">Kurang dari nisab<b>${g2(nisab - total)}g</b></div></div><p style="margin:10px 0 0">Belum wajib zakat kerana jumlah emas belum cukup nisab.</p>`;
+    else out = `<div class="zk" style="margin-bottom:0"><div class="a">Jumlah emas<b>${g2(total)}g</b></div><div class="b ok">Zakat 2.5%<b>${pr ? rm(zg * pr) : g4(zg) + 'g'}</b></div></div>
+      <p style="margin:10px 0 0">${haulOk ? `Zakat wajib: <b>${g4(zg)}g emas</b>${pr ? ` atau <b>${rm(zg * pr)}</b> pada harga RM ${pr}/g` : ''}.` : `Cukup nisab, tetapi zakat hanya wajib selepas cukup haul. Anggaran bila cukup haul: <b>${g4(zg)}g</b>${pr ? ` (≈ ${rm(zg * pr)})` : ''}.`}</p>`;
+    $('zOut').innerHTML = out;
+  }
+
   function renderProf() {
     const R = S.reminder;
     if (!$('rDay').options.length) $('rDay').innerHTML = Array.from({ length: 28 }, (_, i) => `<option value="${i + 1}">${i + 1} haribulan</option>`).join('');
@@ -823,7 +964,7 @@ label.switch { display: flex; gap: 10px; align-items: center; justify-content: s
       if (document.activeElement !== $(id)) $(id).value = p[k] ?? '';
   }
 
-  function render() { renderHeader(); renderHome(); renderGoal(); renderRec(); renderPrice(); renderProf(); }
+  function render() { renderHeader(); renderHome(); renderGoal(); renderRec(); renderZakat(); renderPrice(); renderProf(); }
 
   // ---------- dialogs ----------
   const dlg = $('dlg'), form = $('dlgForm');
@@ -1054,9 +1195,19 @@ label.switch { display: flex; gap: 10px; align-items: center; justify-content: s
   };
 
   document.addEventListener('click', e => {
-    const el = e.target.closest('[data-go],[data-act],[data-month],[data-rec],[data-delprice],[data-f]');
+    const el = e.target.closest('[data-go],[data-act],[data-month],[data-rec],[data-delprice],[data-f],[data-zpaid],[data-zunpaid]');
     if (!el) return;
-    if (el.dataset.go) return go(el.dataset.go);
+    if (el.dataset.go) { e.preventDefault(); return go(el.dataset.go); }
+    if (el.dataset.zunpaid) { e.preventDefault(); delete S.zakat.paid[el.dataset.zunpaid]; save(); render(); return; }
+    if (el.dataset.zpaid) {
+      const h = zakatHauls().hauls.find(x => x.end === el.dataset.zpaid), z = h ? haulZakat(h) : { rm: 0 };
+      return openDialog(`<h2>Rekod bayaran zakat</h2>
+        <label class="f">Jumlah dibayar (RM)<input type="number" name="amount" step="0.01" min="0" required inputmode="decimal" value="${z.rm ? z.rm.toFixed(2) : ''}"></label>
+        <label class="f">Tarikh bayar<input type="date" name="date" required max="${today()}" value="${today()}"></label>`, fd => {
+        S.zakat = { ...S.zakat, paid: { ...S.zakat.paid, [el.dataset.zpaid]: { amount: +fd.amount, date: fd.date } } };
+        save(); render(); toast('Bayaran zakat direkod');
+      });
+    }
     if (el.dataset.f) {
       recFilter = el.dataset.f;
       $('recSeg').querySelectorAll('button').forEach(b => b.classList.toggle('on', b === el));
@@ -1117,6 +1268,11 @@ label.switch { display: flex; gap: 10px; align-items: center; justify-content: s
     e.target.value = '';
   };
 
+  $('zNisab').oninput = e => { if (+e.target.value > 0) { S.profile.nisab = +e.target.value; save(); render(); } };
+  $('zMethod').onchange = e => { S.zakat = { ...S.zakat, method: e.target.value }; save(); render(); };
+  $('zOther').oninput = e => { S.zakat = { ...S.zakat, other: +e.target.value || 0 }; save(); renderZakat(); };
+  $('zPrice').oninput = renderZakat;
+  $('zHaulOk').onchange = renderZakat;
   $('rOn').onchange = e => { S.reminder = { ...S.reminder, on: e.target.checked }; save(); render(); };
   $('rDay').onchange = e => { S.reminder = { ...S.reminder, day: +e.target.value }; save(); render(); };
   $('rTime').onchange = e => { if (e.target.value) { S.reminder = { ...S.reminder, time: e.target.value }; save(); render(); } };
