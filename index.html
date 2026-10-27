@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#6b0f1a">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Tabung Emas">
+<meta name="apple-mobile-web-app-title" content="Tabung Emas Saya">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="favicon.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -21,7 +21,7 @@
 <style>[hidden]{display:none!important}img{max-width:100%}</style>
 </head>
 <body>
-<title>Tabung Emas</title>
+<title>Tabung Emas Saya</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Sora:wght@600;700&display=swap">
@@ -77,7 +77,7 @@ header.top { background: linear-gradient(160deg, #8e1b2b, var(--brand) 55%, #4a0
 header.top .wrap { display: flex; gap: 12px; align-items: center; justify-content: space-between; }
 .brand { display: flex; gap: 10px; align-items: center; min-width: 0; }
 .brand::before { content: ""; width: 34px; height: 34px; flex-shrink: 0; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #f3d48a, var(--amber) 60%, #8f6410); box-shadow: inset 0 0 0 3px rgba(255,255,255,.35); }
-.brand h1 { margin: 0; font-size: 19px; font-weight: 700; color: #ecd27a; letter-spacing: -.01em; }
+.brand h1 { margin: 0; white-space: nowrap; font-size: 19px; font-weight: 700; color: #ecd27a; letter-spacing: -.01em; }
 .brand p { margin: 0; font-size: 12.5px; color: rgba(255,248,230,.8); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pricebox { border: 1px solid var(--dark-line); border-radius: 12px; padding: 6px 12px; text-align: right; background: var(--dark-tile); cursor: pointer; flex-shrink: 0; color: var(--on-dark); font: inherit; }
 .pricebox small { display: block; font-size: 11px; color: rgba(255,248,230,.75); }
@@ -267,13 +267,13 @@ pre.code { background: var(--surface-2); border: 1px solid var(--line); border-r
 @media (max-width: 360px) { .badges { grid-template-columns: repeat(3, 1fr); } }
 .syncnote { font-size: 12.5px; color: var(--muted); }
 @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
-@media (max-width: 380px) { .balance .big { font-size: 38px; } .cal .r { grid-template-columns: 34px repeat(12, 1fr); gap: 3px; } }
+@media (max-width: 380px) { .brand h1 { font-size: 16.5px; } .brand::before { width: 28px; height: 28px; } .pricebox { padding: 6px 9px; } .balance .big { font-size: 38px; } .cal .r { grid-template-columns: 34px repeat(12, 1fr); gap: 3px; } }
 </style>
 
 <header class="top">
   <div class="wrap">
     <div class="brand"><div style="min-width:0">
-      <h1>Tabung Emas</h1>
+      <h1>Tabung Emas Saya</h1>
       <p id="hdrTag">Simpanan emas peribadi</p>
     </div></div>
     <button class="pricebox" id="hdrPrice" aria-label="Kemas kini harga hari ini">
@@ -920,7 +920,7 @@ pre.code { background: var(--surface-2); border: 1px solid var(--line); border-r
   const calStamp = d => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
   const calText = () => ({
     title: 'Simpan emas bulan ini',
-    details: `Masa simpan emas${S.budget.monthly ? ` (bajet RM ${S.budget.monthly})` : ''}. Rekod belian dalam Tabung Emas: ${APP_URL}`
+    details: `Masa simpan emas${S.budget.monthly ? ` (bajet RM ${S.budget.monthly})` : ''}. Rekod belian dalam Tabung Emas Saya: ${APP_URL}`
   });
   function googleCalUrl() {
     const d = nextDue(), e = new Date(d.getTime() + 15 * 60000), t = calText(), q = encodeURIComponent;
@@ -928,7 +928,7 @@ pre.code { background: var(--surface-2); border: 1px solid var(--line); border-r
   }
   function icsFile() {
     const d = nextDue(), t = calText(), now = new Date();
-    return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Tabung Emas//MS', 'BEGIN:VEVENT',
+    return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Tabung Emas Saya//MS', 'BEGIN:VEVENT',
       `UID:tabung-emas-${Date.now()}@viviannajeson.github.io`, `DTSTAMP:${now.toISOString().replace(/[-:]/g, '').slice(0, 15)}Z`,
       `DTSTART:${calStamp(d)}`, 'DURATION:PT15M', 'RRULE:FREQ=MONTHLY',
       `SUMMARY:${t.title}`, `DESCRIPTION:${t.details}`,
@@ -1237,7 +1237,7 @@ pre.code { background: var(--surface-2); border: 1px solid var(--line); border-r
   const backupJson = () => JSON.stringify(S, null, 2), backupName = () => `tabung-emas-backup-${today()}.json`;
   async function shareBackup() {
     const file = new File([backupJson()], backupName(), { type: 'application/json' });
-    const data = { files: [file], title: 'Backup Tabung Emas', text: `Backup Tabung Emas ${fmtDate(today())}. Simpan fail ini. Untuk pulihkan: Profil → Pulihkan dari backup.` };
+    const data = { files: [file], title: 'Backup Tabung Emas Saya', text: `Backup Tabung Emas Saya ${fmtDate(today())}. Simpan fail ini. Untuk pulihkan: Profil → Pulihkan dari backup.` };
     if (!window.claude && navigator.canShare?.(data)) {
       try { await navigator.share(data); markBackup(); return; }
       catch (e) { if (e.name === 'AbortError') return; }
@@ -1397,7 +1397,7 @@ pre.code { background: var(--surface-2); border: 1px solid var(--line); border-r
     const g = x.createRadialGradient(92, top - 10, 4, 100, top, 34);
     g.addColorStop(0, '#f6e29a'); g.addColorStop(.6, '#d4af37'); g.addColorStop(1, '#9a7420');
     x.beginPath(); x.arc(100, top, 32, 0, Math.PI * 2); x.fillStyle = g; x.fill();
-    text('Tabung Emas', 44, top, { font: D, weight: 600, align: 'left', x0: 150, maxW: 500 });
+    text('Tabung Emas Saya', 44, top, { font: D, weight: 600, align: 'left', x0: 150, maxW: 500 });
     const now = new Date();
     text(`${ML[now.getMonth()]} ${now.getFullYear()}`, 32, top, { align: 'right', x0: W - 80, color: 'rgba(243,247,245,.7)', maxW: 360 });
 

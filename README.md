@@ -1,4 +1,4 @@
-# Tabung Emas
+# Tabung Emas Saya
 
 Web app (PWA) untuk jejak simpanan emas GAP. Satu fail HTML, tiada server, semua data disimpan dalam telefon pengguna (localStorage).
 
