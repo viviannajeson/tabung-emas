@@ -204,6 +204,12 @@ dialog h2 { margin: 0 0 14px; font-size: 20px; }
 .toast.show { opacity: 1; }
 .empty { text-align: center; color: var(--muted); padding: 24px 8px; }
 .sample { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; border: 1px dashed var(--amber); background: var(--amber-soft); color: var(--amber-ink); border-radius: 12px; padding: 10px 14px; margin-bottom: 14px; font-size: 14px; }
+a.btn { text-decoration: none; }
+.remind { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; background: var(--amber-soft); border: 1px solid var(--amber); color: var(--amber-ink); border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; }
+.remind b { display: block; font-family: var(--f-display); font-size: 15px; }
+.remind span { font-size: 13.5px; }
+label.switch { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
+.switch input { width: 22px; height: 22px; margin: 0; accent-color: var(--emerald-2); }
 .syncnote { font-size: 12.5px; color: var(--muted); }
 @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
 @media (max-width: 380px) { .balance .big { font-size: 38px; } .cal .r { grid-template-columns: 34px repeat(12, 1fr); gap: 3px; } }
@@ -228,6 +234,7 @@ dialog h2 { margin: 0 0 14px; font-size: 20px; }
 <!-- ============ UTAMA ============ -->
 <section class="page active" id="p-home">
   <div class="sample" id="sampleBar" hidden></div>
+  <div class="remind" id="remindBar" hidden></div>
   <h2 class="title">Simpanan emas saya</h2>
   <p class="sub" id="homeSub"></p>
 
@@ -364,6 +371,22 @@ dialog h2 { margin: 0 0 14px; font-size: 20px; }
     <label class="f">Nisab zakat emas (gram)<input type="number" inputmode="decimal" step="0.01" id="sNisab"></label>
     <div class="hint" style="margin-top:-4px">Lalai 85g. Semak nisab dan uruf ikut pusat zakat negeri anda.</div>
   </div>
+  <div class="card" id="reminderCard">
+    <div class="label">Peringatan simpanan bulanan</div>
+    <p class="hint" style="margin:4px 0 12px">Pilih hari anda biasa simpan emas, contohnya selepas gaji masuk.</p>
+    <label class="f switch">Hidupkan peringatan<input type="checkbox" id="rOn"></label>
+    <div id="rBody">
+      <div class="grid2">
+        <label class="f">Hari setiap bulan<select id="rDay"></select></label>
+        <label class="f">Masa<input type="time" id="rTime"></label>
+      </div>
+      <div class="stack">
+        <a class="btn gold" id="rGoogle" target="_blank" rel="noopener">Tambah ke Google Calendar</a>
+        <button class="btn ghost" data-act="ics" id="rIcs">Tambah ke kalendar telefon (.ics)</button>
+      </div>
+      <div class="hint">Kalendar telefon akan beri notifikasi setiap bulan walaupun app tidak dibuka. App ini juga akan papar peringatan bila tiba hari simpanan. Jika tukar hari, tambah semula ke kalendar dan padam acara lama.</div>
+    </div>
+  </div>
   <div class="card">
     <div class="label" style="margin-bottom:10px">Kad penasihat / dealer (pilihan)</div>
     <label class="f">Nama penasihat<input id="sDealer" placeholder="Vivianna Tora Jeson"></label>
@@ -409,7 +432,8 @@ dialog h2 { margin: 0 0 14px; font-size: 20px; }
     goal: null,          // { name, targetRM, grams, priceAtSet, years, setOn }
     records: [],         // { id, type:'buy'|'sell', date, grams, amount, price, note }
     prices: [],          // { date:'YYYY-MM-DD', price, time }
-    monthOverride: {}    // { 'YYYY-MM': true|false }
+    monthOverride: {},   // { 'YYYY-MM': true|false }
+    reminder: { on: false, day: 25, time: '20:00' }
   });
 
   // Example data, flagged so the page labels it and offers to clear it.
@@ -570,6 +594,13 @@ dialog h2 { margin: 0 0 14px; font-size: 20px; }
     $('mText').innerHTML = saved && mg ? `Bulan ini anda sudah simpan <b>${g4(mg)}g</b>. Syabas!` :
       S.budget.monthly && p ? `Bajet bulan ini ${rm(S.budget.monthly, 0)} ≈ <b>${g4(S.budget.monthly / p)}g</b> pada harga hari ini.` :
       'Set bajet bulanan di tab Matlamat untuk lihat berapa gram bulan ini.';
+    const R = S.reminder;
+    if (!saved) $('mText').innerHTML += R.on ? `<br><span class="hint">Peringatan: ${R.day} ${ML[+ck.slice(5) - 1]}, ${R.time}</span>` : `<br><span class="hint"><a href="#" data-go="prof" style="color:var(--emerald-ink)">Set peringatan bulanan</a></span>`;
+
+    // reminder banner once this month's saving day has arrived
+    const dueToday = new Date().getDate() >= R.day;
+    $('remindBar').hidden = !(R.on && !saved && dueToday && !S.sample);
+    if (!$('remindBar').hidden) $('remindBar').innerHTML = `<div><b>${new Date().getDate() === R.day ? 'Hari ini hari simpan emas!' : 'Bulan ini belum simpan emas'}</b><span>${S.budget.monthly && p ? `Bajet ${rm(S.budget.monthly, 0)} ≈ ${g4(S.budget.monthly / p)}g pada harga hari ini.` : 'Simpan sedikit pun, setiap gram dikira.'}</span></div><button class="btn gold small" data-act="add-buy">+ Rekod belian</button>`;
 
     // 24 months
     const keys = Array.from({ length: 24 }, (_, i) => addMonths(ck, i - 23));
@@ -750,7 +781,41 @@ dialog h2 { margin: 0 0 14px; font-size: 20px; }
     </svg><div class="legend"><span><b style="color:var(--gold)">━</b> Harga GAP 1g</span><span><b style="color:var(--accent-ink)">●</b> Tarikh anda beli</span></div>`;
   }
 
+  const APP_URL = 'https://viviannajeson.github.io/tabung-emas/';
+  function nextDue() {
+    const R = S.reminder, n = new Date(), [h, m] = R.time.split(':').map(Number);
+    let d = new Date(n.getFullYear(), n.getMonth(), R.day, h, m);
+    if (d < n) d = new Date(n.getFullYear(), n.getMonth() + 1, R.day, h, m);
+    return d;
+  }
+  const calStamp = d => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+  const calText = () => ({
+    title: 'Simpan emas bulan ini',
+    details: `Masa simpan emas${S.budget.monthly ? ` (bajet RM ${S.budget.monthly})` : ''}. Rekod belian dalam Tabung Emas: ${APP_URL}`
+  });
+  function googleCalUrl() {
+    const d = nextDue(), e = new Date(d.getTime() + 15 * 60000), t = calText(), q = encodeURIComponent;
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${q(t.title)}&dates=${calStamp(d)}/${calStamp(e)}&ctz=Asia/Kuala_Lumpur&recur=${q('RRULE:FREQ=MONTHLY')}&details=${q(t.details)}`;
+  }
+  function icsFile() {
+    const d = nextDue(), t = calText(), now = new Date();
+    return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Tabung Emas//MS', 'BEGIN:VEVENT',
+      `UID:tabung-emas-${Date.now()}@viviannajeson.github.io`, `DTSTAMP:${now.toISOString().replace(/[-:]/g, '').slice(0, 15)}Z`,
+      `DTSTART:${calStamp(d)}`, 'DURATION:PT15M', 'RRULE:FREQ=MONTHLY',
+      `SUMMARY:${t.title}`, `DESCRIPTION:${t.details}`,
+      'BEGIN:VALARM', 'TRIGGER:PT0M', 'ACTION:DISPLAY', `DESCRIPTION:${t.title}`, 'END:VALARM',
+      'END:VEVENT', 'END:VCALENDAR', ''].join('\r\n');
+  }
+
   function renderProf() {
+    const R = S.reminder;
+    if (!$('rDay').options.length) $('rDay').innerHTML = Array.from({ length: 28 }, (_, i) => `<option value="${i + 1}">${i + 1} haribulan</option>`).join('');
+    $('rOn').checked = R.on; $('rDay').value = R.day;
+    if (document.activeElement !== $('rTime')) $('rTime').value = R.time;
+    $('rBody').hidden = !R.on;
+    $('rGoogle').href = googleCalUrl();
+    // .ics files can't be saved from inside Claude; the standalone app offers them
+    $('rIcs').hidden = !!window.claude;
     const p = S.profile;
     for (const [id, k] of [['sName', 'name'], ['sNisab', 'nisab'], ['sDealer', 'dealer'], ['sDealerMsg', 'dealerMsg'], ['sDealerWa', 'dealerWa']])
       if (document.activeElement !== $(id)) $(id).value = p[k] ?? '';
@@ -903,6 +968,10 @@ dialog h2 { margin: 0 0 14px; font-size: 20px; }
         return;
       }
       case 'import': return $('importFile').click();
+      case 'ics': {
+        const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([icsFile()], { type: 'text/calendar' })), download: 'peringatan-simpan-emas.ics' });
+        document.body.append(a); a.click(); a.remove(); return toast('Buka fail untuk tambah ke kalendar');
+      }
       case 'reset':
         return ask('Padam SEMUA rekod, matlamat dan harga? Tindakan ini tidak boleh diundur.', 'Padam semua', () => { S = defaults(); save(); render(); toast('Semua data dipadam'); });
       case 'load-sample': S = sampleData(); save(); render(); return toast('Data contoh dimuatkan');
@@ -921,6 +990,9 @@ dialog h2 { margin: 0 0 14px; font-size: 20px; }
     e.target.value = '';
   };
 
+  $('rOn').onchange = e => { S.reminder = { ...S.reminder, on: e.target.checked }; save(); render(); };
+  $('rDay').onchange = e => { S.reminder = { ...S.reminder, day: +e.target.value }; save(); render(); };
+  $('rTime').onchange = e => { if (e.target.value) { S.reminder = { ...S.reminder, time: e.target.value }; save(); render(); } };
   $('budget').oninput = e => { S.budget.monthly = +e.target.value || 0; save(); renderGoal(); renderHome(); };
   $('startMonth').onchange = e => { S.budget.start = e.target.value; save(); };
   $('checkDate').onchange = () => { checkTouched = true; renderPrice(); };
